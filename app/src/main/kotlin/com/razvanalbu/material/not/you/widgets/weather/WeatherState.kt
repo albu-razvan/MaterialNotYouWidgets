@@ -1,4 +1,4 @@
-package com.razvanalbu.material.not.you.widgets
+package com.razvanalbu.material.not.you.widgets.weather
 
 sealed class WeatherState {
     data class Success(

@@ -1,4 +1,4 @@
-package com.razvanalbu.material.not.you.widgets
+package com.razvanalbu.material.not.you.widgets.weather
 
 import org.json.JSONObject
 import java.io.BufferedReader

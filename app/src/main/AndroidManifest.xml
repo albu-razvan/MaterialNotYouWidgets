@@ -14,7 +14,7 @@
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
         <receiver
-            android:name=".WeatherPillWidget"
+            android:name=".weather.WeatherPillWidget"
             android:exported="true"
             android:label="@string/widget_name">
             <intent-filter>
@@ -26,7 +26,7 @@
         </receiver>
 
         <service
-            android:name=".FramePumpService"
+            android:name=".weather.FramePumpService"
             android:exported="false"
             android:foregroundServiceType="shortService" />
 
