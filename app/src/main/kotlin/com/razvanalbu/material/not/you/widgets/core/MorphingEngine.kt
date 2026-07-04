@@ -131,7 +131,7 @@ class MorphingEngine(private val numPoints: Int = 48) {
     }
 
     companion object {
-        const val PILL_HALF_WIDTH = 0.3f
+        const val PILL_HALF_WIDTH = 0.25f
         const val PILL_CORNER_RADIUS = 1f
         const val SHAPE_SCALE = 0.5f
     }

@@ -9,13 +9,14 @@ import android.util.Log
 import android.widget.RemoteViews
 import com.google.android.material.R as MaterialR
 import com.razvanalbu.material.not.you.widgets.R
+import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.MorphingEngine
+import com.razvanalbu.material.not.you.widgets.core.VariableFontProvider
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
 import com.razvanalbu.material.not.you.widgets.core.ShapeType
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
 
 class WeatherPillWidget : AppWidgetProvider() {
-
     private val morphEngine = MorphingEngine()
 
     override fun onUpdate(
@@ -56,6 +57,76 @@ class WeatherPillWidget : AppWidgetProvider() {
         super.onReceive(context, intent)
     }
 
+    private fun startAnimation(context: Context, appWidgetId: Int, shapeColor: Int) {
+        val morphInIntent = Intent(context, FramePumpService::class.java).apply {
+            action = BasePumpService.ACTION_MORPH_IN
+            putExtra(FramePumpService.EXTRA_APPWIDGET_ID, appWidgetId)
+            putExtra(FramePumpService.EXTRA_SHAPE_COLOR, shapeColor)
+        }
+        try {
+            context.startForegroundService(morphInIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "startForegroundService failed", e)
+        }
+
+        Thread {
+            try {
+                val result = WeatherApi.fetchWeatherData()
+                applyWeatherData(context, appWidgetId, result)
+            } catch (e: Exception) {
+                Log.e(TAG, "fetch failed", e)
+                applyWeatherData(context, appWidgetId, WeatherState.Error)
+            }
+
+            val morphOutIntent = Intent(context, FramePumpService::class.java).apply {
+                action = BasePumpService.ACTION_MORPH_OUT
+            }
+            try {
+                context.startService(morphOutIntent)
+            } catch (e: Exception) {
+                Log.e(TAG, "morph out failed", e)
+            }
+        }.apply { name = "weather-fetch-$appWidgetId" }.start()
+    }
+
+    private fun applyWeatherData(context: Context, appWidgetId: Int, result: WeatherState) {
+        try {
+            val squarePx = WidgetUtils.getSquareSizePx(context, appWidgetId)
+            val typeface = VariableFontProvider.get(
+                context,
+                rond = TYPEFACE_ROUNDNESS,
+                wght = TYPEFACE_WEIGHT,
+                wdth = TYPEFACE_WIDTH,
+                grad = TYPEFACE_GRADE,
+            )
+
+            val (tempText, iconRes) = when (result) {
+                is WeatherState.Success -> result.temp to result.iconRes
+                else -> null to null
+            }
+
+            val icon = context.getDrawable(iconRes ?: 0)
+
+            val weatherView = WeatherPillInfoView(context).apply {
+                setTemperature(tempText)
+                setIcon(icon)
+                setTextColor(resolveTextColor(context))
+                setTypeface(typeface)
+            }
+
+            val weatherFrame = weatherView.renderToBitmap(squarePx, squarePx)
+
+            val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
+            views.setInt(R.id.content_container, "setMinimumWidth", squarePx)
+            views.setInt(R.id.content_container, "setMinimumHeight", squarePx)
+            views.setImageViewBitmap(R.id.weather_info_image, weatherFrame)
+
+            AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, views)
+        } catch (e: Exception) {
+            Log.e(TAG, "applyWeatherData failed", e)
+        }
+    }
+
     private fun refreshWidget(
         context: Context,
         manager: AppWidgetManager,
@@ -65,26 +136,24 @@ class WeatherPillWidget : AppWidgetProvider() {
             try {
                 val shapeColor = computeShapeColor(context)
                 val pillRadii = morphEngine.computeRadii(ShapeType.PILL)
-                val squarePx = squareSizePx(context, appWidgetId)
-                val frame = morphEngine.renderRadiiToBitmap(
+                val squarePx = WidgetUtils.getSquareSizePx(context, appWidgetId)
+                val backgroundFrame = morphEngine.renderRadiiToBitmap(
                     squarePx, squarePx, pillRadii, pillRadii, 0f, shapeColor, -45f
                 )
+
                 val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
                 views.setInt(R.id.content_container, "setMinimumWidth", squarePx)
                 views.setInt(R.id.content_container, "setMinimumHeight", squarePx)
+
                 setupTapIntent(context, views, appWidgetId)
-                setupTextColors(context, views)
-                setLoadingState(views)
-                views.setImageViewBitmap(R.id.morph_image, frame)
+
+                views.setImageViewBitmap(R.id.morph_image, backgroundFrame)
                 manager.updateAppWidget(appWidgetId, views)
             } catch (e: Exception) {
                 Log.e(TAG, "refreshWidget failed", e)
             }
         }.apply { name = "widget-refresh-$appWidgetId" }.start()
     }
-
-    private fun squareSizePx(context: Context, appWidgetId: Int): Int =
-        WidgetUtils.getSquareSizePx(context, appWidgetId)
 
     private fun setupTapIntent(context: Context, views: RemoteViews, appWidgetId: Int) {
         val tapIntent = Intent(context, WeatherPillWidget::class.java).apply {
@@ -98,43 +167,6 @@ class WeatherPillWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_root, pi)
     }
 
-    private fun setupTextColors(context: Context, views: RemoteViews) {
-        val ta = context.obtainStyledAttributes(intArrayOf(
-            MaterialR.attr.colorOnSurface,
-            MaterialR.attr.colorOnSurfaceVariant,
-            android.R.attr.colorPrimary,
-        ))
-        val onSurface = ta.getColor(0, android.graphics.Color.WHITE)
-        val onSurfaceVariant = ta.getColor(1, android.graphics.Color.GRAY)
-        val primary = ta.getColor(2, android.graphics.Color.BLACK)
-        ta.recycle()
-
-        views.setTextColor(R.id.location_text, onSurface)
-        views.setTextColor(R.id.temp_text, onSurface)
-        views.setTextColor(R.id.condition_text, onSurfaceVariant)
-        views.setTextColor(R.id.high_low_text, primary)
-    }
-
-    private fun setLoadingState(views: RemoteViews) {
-        views.setTextViewText(R.id.location_text, "Stockholm")
-        views.setTextViewText(R.id.icon_text, "\u23F3")
-        views.setTextViewText(R.id.temp_text, "--\u00B0")
-        views.setTextViewText(R.id.condition_text, "Tap to load")
-        views.setTextViewText(R.id.high_low_text, "")
-    }
-
-    private fun startAnimation(context: Context, appWidgetId: Int, shapeColor: Int) {
-        val intent = Intent(context, FramePumpService::class.java).apply {
-            putExtra(FramePumpService.EXTRA_APPWIDGET_ID, appWidgetId)
-            putExtra(FramePumpService.EXTRA_SHAPE_COLOR, shapeColor)
-        }
-        try {
-            context.startForegroundService(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "startForegroundService failed", e)
-        }
-    }
-
     private fun computeShapeColor(context: Context): Int {
         val ta = context.obtainStyledAttributes(intArrayOf(
             android.R.attr.colorPrimary,
@@ -144,8 +176,25 @@ class WeatherPillWidget : AppWidgetProvider() {
         return primary
     }
 
+    private fun resolveTextColor(context: Context): Int {
+        val ta = context.obtainStyledAttributes(
+            intArrayOf(MaterialR.attr.colorOnSurface)
+        )
+
+        val color = ta.getColor(0, android.graphics.Color.WHITE)
+        ta.recycle()
+
+        return color
+    }
+
     companion object {
         private const val TAG = "WidgetProvider"
+
+        private const val TYPEFACE_ROUNDNESS = 100f
+        private const val TYPEFACE_WEIGHT = 500f
+        private const val TYPEFACE_WIDTH = 100f
+        private const val TYPEFACE_GRADE = 20f
+
         const val ACTION_TAP_REFRESH =
             "com.razvanalbu.material.not.you.widgets.TAP_REFRESH"
     }

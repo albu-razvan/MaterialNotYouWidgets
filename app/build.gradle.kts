@@ -5,12 +5,21 @@ plugins {
 
 android {
     namespace = "com.razvanalbu.material.not.you.widgets"
-    compileSdk = 36
+    compileSdk = 37
+
+    sourceSets {
+        getByName("main") {
+            res.srcDirs(
+                "src/main/res",
+                "src/main/weather"
+            )
+        }
+    }
 
     defaultConfig {
         applicationId = "com.razvanalbu.material.not.you.widgets"
         minSdk = 31
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
     }

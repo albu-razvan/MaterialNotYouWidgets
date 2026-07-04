@@ -7,10 +7,7 @@ import android.app.Service
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.graphics.Bitmap
-import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.util.Log
 import android.view.Choreographer
 import android.view.animation.PathInterpolator
@@ -37,7 +34,6 @@ abstract class BasePumpService : Service() {
     protected open val spinInInterpolator = PathInterpolator(0.75f, 0.0f, 0.25f, 0.9f)
     protected open val morphInterpolator = PathInterpolator(0.75f, 0.0f, 0.25f, 1.0f)
     protected open val notificationSmallIcon: Int = android.R.drawable.ic_menu_compass
-    protected open val fetchTimeoutNs: Long = 10_000_000_000L
     protected open val morphDurationNs: Long = 500_000_000L
     protected open val rotationSpeed: Float = 120f
     protected open val notificationId: Int = 1001
@@ -55,12 +51,9 @@ abstract class BasePumpService : Service() {
     private var phase = PumpPhase.MORPH_IN
     private var phaseStartTimeNs = 0L
     private var currentRotation = 0f
-    private var fetchStarted = false
-    private var fetchCompleted = false
-    private var fetchResult: Any? = null
     private var morphOutTargetRotation = -45f
     private var morphOutStartRotation = 0f
-    private val handler = Handler(Looper.getMainLooper())
+    private var pendingDeactivate = false
 
     private val frameCallback = Choreographer.FrameCallback { frameTimeNanos ->
         if (phaseStartTimeNs == 0L) {
@@ -77,15 +70,26 @@ abstract class BasePumpService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        shapeColor = intent?.getIntExtra(EXTRA_SHAPE_COLOR, 0) ?: 0
-        widgetId = intent?.getIntExtra(EXTRA_APPWIDGET_ID, -1) ?: -1
-        squarePx = getSquareSizePx(this, widgetId)
+        when (intent?.action) {
+            ACTION_MORPH_IN -> {
+                if (currentPhase != PumpPhase.IDLE) {
+                    return START_NOT_STICKY
+                }
 
-        reset()
+                shapeColor = intent.getIntExtra(EXTRA_SHAPE_COLOR, 0)
+                widgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, -1)
+                squarePx = getSquareSizePx(this, widgetId)
 
-        val notification = createNotification()
-        startForeground(notificationId, notification)
-        Choreographer.getInstance().postFrameCallback(frameCallback)
+                reset()
+
+                val notification = createNotification()
+                startForeground(notificationId, notification)
+                Choreographer.getInstance().postFrameCallback(frameCallback)
+            }
+            ACTION_MORPH_OUT -> {
+                triggerMorphOut()
+            }
+        }
 
         return START_NOT_STICKY
     }
@@ -114,9 +118,7 @@ abstract class BasePumpService : Service() {
         phase = PumpPhase.MORPH_IN
         currentPhase = PumpPhase.MORPH_IN
         phaseStartTimeNs = 0L
-        fetchStarted = false
-        fetchCompleted = false
-        fetchResult = null
+        pendingDeactivate = false
     }
 
     private fun cleanup() {
@@ -144,13 +146,17 @@ abstract class BasePumpService : Service() {
                 )
 
                 if (time >= 1f) {
-                    phase = PumpPhase.ROTATE
-                    phaseStartTimeNs = frameTimeNanos
-
-                    if (!fetchStarted) {
-                        fetchStarted = true
-                        startFetchAsync()
+                    if (pendingDeactivate) {
+                        pendingDeactivate = false
+                        val approxTarget = currentRotation + spinDegrees
+                        val m = ((approxTarget + 45f) / 360f).roundToInt()
+                        morphOutStartRotation = currentRotation
+                        morphOutTargetRotation = -45f + 360f * m
+                        phase = PumpPhase.MORPH_OUT
+                    } else {
+                        phase = PumpPhase.ROTATE
                     }
+                    phaseStartTimeNs = frameTimeNanos
                 }
             }
 
@@ -163,25 +169,6 @@ abstract class BasePumpService : Service() {
                         squarePx, squarePx, endRadii, endRadii, 0f, shapeColor, currentRotation
                     )
                 )
-
-                if (!fetchStarted) {
-                    fetchStarted = true
-                    startFetchAsync()
-                }
-
-                if (fetchCompleted || elapsed >= fetchTimeoutNs) {
-                    if (!fetchCompleted) {
-                        fetchResult = null
-                    }
-
-                    val approxTarget = currentRotation + spinDegrees
-                    val m = ((approxTarget + 45f) / 360f).roundToInt()
-
-                    morphOutStartRotation = currentRotation
-                    morphOutTargetRotation = -45f + 360f * m
-                    phase = PumpPhase.MORPH_OUT
-                    phaseStartTimeNs = frameTimeNanos
-                }
             }
 
             PumpPhase.MORPH_OUT -> {
@@ -198,7 +185,6 @@ abstract class BasePumpService : Service() {
                 )
 
                 if (t >= 1f) {
-                    onAnimationComplete()
                     currentPhase = PumpPhase.IDLE
                     cleanup()
                     stopForeground(STOP_FOREGROUND_REMOVE)
@@ -210,6 +196,23 @@ abstract class BasePumpService : Service() {
         }
 
         Choreographer.getInstance().postFrameCallback(frameCallback)
+    }
+
+    private fun triggerMorphOut() {
+        when (phase) {
+            PumpPhase.MORPH_IN -> {
+                pendingDeactivate = true
+            }
+            PumpPhase.ROTATE -> {
+                val approxTarget = currentRotation + spinDegrees
+                val m = ((approxTarget + 45f) / 360f).roundToInt()
+                morphOutStartRotation = currentRotation
+                morphOutTargetRotation = -45f + 360f * m
+                phase = PumpPhase.MORPH_OUT
+                phaseStartTimeNs = System.nanoTime()
+            }
+            else -> { }
+        }
     }
 
     protected fun pushFrame(frame: Bitmap) {
@@ -228,31 +231,6 @@ abstract class BasePumpService : Service() {
     }
 
     protected open fun onPushFrameHook(views: RemoteViews) {}
-
-    protected abstract fun onAnimationComplete()
-
-    private fun startFetchAsync() {
-        Thread {
-            try {
-                val result = fetchData()
-                handler.post {
-                    fetchCompleted = true
-                    fetchResult = result
-                }
-            } catch (exception: Exception) {
-                Log.e(TAG, "Fetch failed: ", exception)
-
-                handler.post {
-                    fetchCompleted = true
-                    fetchResult = null
-                }
-            }
-        }.start()
-    }
-
-    protected abstract fun fetchData(): Any?
-
-    protected fun getFetchResult(): Any? = fetchResult
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
@@ -273,6 +251,8 @@ abstract class BasePumpService : Service() {
 
         const val EXTRA_APPWIDGET_ID = "app_widget_id"
         const val EXTRA_SHAPE_COLOR = "shape_color"
+        const val ACTION_MORPH_IN = "morph_in"
+        const val ACTION_MORPH_OUT = "morph_out"
 
         @Volatile
         var currentPhase = PumpPhase.IDLE
