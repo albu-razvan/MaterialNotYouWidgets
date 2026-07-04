@@ -1,5 +1,6 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
+import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
@@ -21,8 +22,22 @@ class FramePumpService : BasePumpService() {
     override fun getNotificationTitle(): String = "Weather Widget"
     override fun getNotificationText(): String = "Loading weather..."
 
+    override fun onFrame(phase: PumpPhase, fraction: Float) {
+        onAnimationFrame?.invoke(phase, fraction)
+    }
+
+    override fun onPushFrameHook(views: RemoteViews) {
+        onPushFrameView?.invoke(views)
+    }
+
     companion object {
         private const val CHANNEL_ID = "widget_morph_animation"
+
+        @Volatile
+        var onAnimationFrame: ((PumpPhase, Float) -> Unit)? = null
+
+        @Volatile
+        var onPushFrameView: ((RemoteViews) -> Unit)? = null
 
         @JvmStatic
         val currentPhase: PumpPhase

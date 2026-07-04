@@ -6,10 +6,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
-import android.util.Log
 import android.view.View
 import androidx.core.graphics.createBitmap
-import java.lang.Math.random
 import kotlin.math.abs
 
 class WeatherPillInfoView(context: Context) : View(context) {
@@ -67,19 +65,20 @@ class WeatherPillInfoView(context: Context) : View(context) {
         val w = width.toFloat()
         val h = height.toFloat()
 
-        val isThreeDigits = abs(temp) >= 100
+        val isLarge = abs(temp) >= 100 || temp <= -10
 
         textPaint.apply {
             color = textColor
             typeface = tf
             textAlign = Paint.Align.CENTER
-            textSize = minOf(width, height) * if (isThreeDigits) 0.3f else 0.33f
+            textSize = minOf(width, height) *
+                    if (isLarge) 0.3f else 0.33f
         }
 
         val fm = textPaint.fontMetrics
 
-        val textX = if (isThreeDigits) w * 0.54f else w * 0.57f
-        val textY = -fm.ascent * if (isThreeDigits) 1.7f else 1.5f
+        val textX = if (isLarge) w * 0.54f else w * 0.57f
+        val textY = -fm.ascent * if (isLarge) 1.7f else 1.5f
 
         canvas.drawText("$temp°", textX, textY, textPaint)
 

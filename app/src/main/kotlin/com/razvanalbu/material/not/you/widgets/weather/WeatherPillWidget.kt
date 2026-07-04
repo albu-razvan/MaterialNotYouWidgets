@@ -46,8 +46,12 @@ class WeatherPillWidget : AppWidgetProvider() {
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
                 AppWidgetManager.INVALID_APPWIDGET_ID
             )
+
             if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                if (FramePumpService.currentPhase != PumpPhase.IDLE) return
+                if (FramePumpService.currentPhase != PumpPhase.IDLE) {
+                    return
+                }
+
                 val shapeColor = computeShapeColor(context)
                 refreshWidget(context, AppWidgetManager.getInstance(context), appWidgetId)
                 startAnimation(context, appWidgetId, shapeColor)
@@ -58,6 +62,28 @@ class WeatherPillWidget : AppWidgetProvider() {
     }
 
     private fun startAnimation(context: Context, appWidgetId: Int, shapeColor: Int) {
+        var lastFraction = 0f
+
+        FramePumpService.onAnimationFrame = { _, fraction ->
+            lastFraction = fraction
+        }
+
+        FramePumpService.onPushFrameView = { views ->
+            val spec = getSpecForPhase(FramePumpService.currentPhase)
+
+            val t = spec.interpolator.getInterpolation(lastFraction)
+
+            val containerScale = spec.containerScaleFrom + (spec.containerScaleTo - spec.containerScaleFrom) * t
+            val infoScale = spec.infoScaleFrom + (spec.infoScaleTo - spec.infoScaleFrom) * t
+            val opacity = spec.alphaFrom + (spec.alphaTo - spec.alphaFrom) * t
+
+            views.setFloat(R.id.weather_info_image, "setAlpha", opacity)
+            views.setFloat(R.id.weather_info_image, "setScaleX", infoScale)
+            views.setFloat(R.id.weather_info_image, "setScaleY", infoScale)
+            views.setFloat(R.id.content_container, "setScaleX", containerScale)
+            views.setFloat(R.id.content_container, "setScaleY", containerScale)
+        }
+
         val morphInIntent = Intent(context, FramePumpService::class.java).apply {
             action = BasePumpService.ACTION_MORPH_IN
             putExtra(FramePumpService.EXTRA_APPWIDGET_ID, appWidgetId)

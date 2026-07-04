@@ -48,7 +48,9 @@ abstract class BasePumpService : Service() {
     protected var lastBitmap: Bitmap? = null
     protected val morphEngine = MorphingEngine()
 
-    private var phase = PumpPhase.MORPH_IN
+    @Volatile
+    protected var phase = PumpPhase.IDLE
+        private set
     private var phaseStartTimeNs = 0L
     private var currentRotation = 0f
     private var morphOutTargetRotation = -45f
@@ -70,9 +72,10 @@ abstract class BasePumpService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        setActiveInstance(this)
         when (intent?.action) {
             ACTION_MORPH_IN -> {
-                if (currentPhase != PumpPhase.IDLE) {
+                if (phase != PumpPhase.IDLE) {
                     return START_NOT_STICKY
                 }
 
@@ -98,6 +101,7 @@ abstract class BasePumpService : Service() {
 
     override fun onDestroy() {
         cleanup()
+        setActiveInstance(null)
 
         super.onDestroy()
     }
@@ -116,7 +120,6 @@ abstract class BasePumpService : Service() {
 
     private fun reset() {
         phase = PumpPhase.MORPH_IN
-        currentPhase = PumpPhase.MORPH_IN
         phaseStartTimeNs = 0L
         pendingDeactivate = false
     }
@@ -134,14 +137,17 @@ abstract class BasePumpService : Service() {
             PumpPhase.MORPH_IN -> {
                 val time = ((frameTimeNanos - phaseStartTimeNs).toFloat() / morphDurationNs)
                     .coerceAtMost(1f)
+                val morphT = morphInterpolator.getInterpolation(time)
 
                 val rot = -45f + spinDegrees * spinInInterpolator.getInterpolation(time)
                 currentRotation = rot
 
+                onFrame(PumpPhase.MORPH_IN, time)
+
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
                         squarePx, squarePx, startRadii, endRadii,
-                        morphInterpolator.getInterpolation(time), shapeColor, rot
+                        morphT, shapeColor, rot
                     )
                 )
 
@@ -178,6 +184,8 @@ abstract class BasePumpService : Service() {
                 val spinT = spinOutInterpolator.getInterpolation(t)
                 val rot = morphOutStartRotation * (1f - spinT) + morphOutTargetRotation * spinT
 
+                onFrame(PumpPhase.MORPH_OUT, t)
+
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
                         squarePx, squarePx, endRadii, startRadii, morphT, shapeColor, rot
@@ -185,7 +193,7 @@ abstract class BasePumpService : Service() {
                 )
 
                 if (t >= 1f) {
-                    currentPhase = PumpPhase.IDLE
+                    phase = PumpPhase.IDLE
                     cleanup()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -232,6 +240,8 @@ abstract class BasePumpService : Service() {
 
     protected open fun onPushFrameHook(views: RemoteViews) {}
 
+    protected open fun onFrame(phase: PumpPhase, fraction: Float) {}
+
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             notificationChannelId,
@@ -247,14 +257,19 @@ abstract class BasePumpService : Service() {
     }
 
     companion object {
-        private const val TAG = "BasePumpService"
-
         const val EXTRA_APPWIDGET_ID = "app_widget_id"
         const val EXTRA_SHAPE_COLOR = "shape_color"
         const val ACTION_MORPH_IN = "morph_in"
         const val ACTION_MORPH_OUT = "morph_out"
 
         @Volatile
-        var currentPhase = PumpPhase.IDLE
+        private var activeInstance: BasePumpService? = null
+
+        val currentPhase: PumpPhase
+            get() = activeInstance?.phase ?: PumpPhase.IDLE
+
+        fun setActiveInstance(service: BasePumpService?) {
+            activeInstance = service
+        }
     }
 }
