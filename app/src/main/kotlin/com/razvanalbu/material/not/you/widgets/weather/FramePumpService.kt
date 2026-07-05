@@ -1,5 +1,7 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
+import android.appwidget.AppWidgetManager
+import android.content.Intent
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
@@ -22,12 +24,28 @@ class FramePumpService : BasePumpService() {
     override fun getNotificationTitle(): String = "Weather Widget"
     override fun getNotificationText(): String = "Loading weather..."
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val result = super.onStartCommand(intent, flags, startId)
+
+        if (WeatherPillWidget.pendingMorphOut.remove(widgetId)) {
+            triggerMorphOut()
+        }
+
+        return result
+    }
+
     override fun onFrame(phase: PumpPhase, fraction: Float) {
         onAnimationFrame?.invoke(phase, fraction)
     }
 
     override fun onPushFrameHook(views: RemoteViews) {
         onPushFrameView?.invoke(views)
+    }
+
+    override fun onAnimationComplete() {
+        val views = RemoteViews(packageName, R.layout.weather_pill_layout)
+        views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
+        AppWidgetManager.getInstance(this).updateAppWidget(widgetId, views)
     }
 
     companion object {
@@ -46,9 +64,5 @@ class FramePumpService : BasePumpService() {
         @JvmStatic
         val EXTRA_APPWIDGET_ID: String
             get() = BasePumpService.EXTRA_APPWIDGET_ID
-
-        @JvmStatic
-        val EXTRA_SHAPE_COLOR: String
-            get() = BasePumpService.EXTRA_SHAPE_COLOR
     }
 }

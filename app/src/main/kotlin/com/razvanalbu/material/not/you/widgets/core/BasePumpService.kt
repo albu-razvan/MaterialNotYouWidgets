@@ -8,8 +8,8 @@ import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.IBinder
-import android.util.Log
 import android.view.Choreographer
+import android.view.ContextThemeWrapper
 import android.view.animation.PathInterpolator
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils.getSquareSizePx
@@ -42,7 +42,7 @@ abstract class BasePumpService : Service() {
     protected abstract val startRadii: FloatArray
     protected abstract val endRadii: FloatArray
 
-    protected var shapeColor = 0
+    @Volatile
     protected var squarePx = 400
     protected var widgetId = -1
     protected var lastBitmap: Bitmap? = null
@@ -79,7 +79,6 @@ abstract class BasePumpService : Service() {
                     return START_NOT_STICKY
                 }
 
-                shapeColor = intent.getIntExtra(EXTRA_SHAPE_COLOR, 0)
                 widgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, -1)
                 squarePx = getSquareSizePx(this, widgetId)
 
@@ -131,6 +130,7 @@ abstract class BasePumpService : Service() {
     }
 
     private fun processFrame(frameTimeNanos: Long) {
+        val size = squarePx
         when (phase) {
             PumpPhase.IDLE -> return
 
@@ -146,8 +146,8 @@ abstract class BasePumpService : Service() {
 
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
-                        squarePx, squarePx, startRadii, endRadii,
-                        morphT, shapeColor, rot
+                        size, size, startRadii, endRadii,
+                        morphT, resolveShapeColor(), rot
                     )
                 )
 
@@ -172,7 +172,8 @@ abstract class BasePumpService : Service() {
                     -45f + spinDegrees + elapsed.toFloat() / 1_000_000_000f * rotationSpeed
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
-                        squarePx, squarePx, endRadii, endRadii, 0f, shapeColor, currentRotation
+                        size, size, endRadii, endRadii,
+                        0f, resolveShapeColor(), currentRotation
                     )
                 )
             }
@@ -188,12 +189,14 @@ abstract class BasePumpService : Service() {
 
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
-                        squarePx, squarePx, endRadii, startRadii, morphT, shapeColor, rot
+                        size, size, endRadii, startRadii,
+                        morphT, resolveShapeColor(), rot
                     )
                 )
 
                 if (t >= 1f) {
                     phase = PumpPhase.IDLE
+                    onAnimationComplete()
                     cleanup()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -206,7 +209,7 @@ abstract class BasePumpService : Service() {
         Choreographer.getInstance().postFrameCallback(frameCallback)
     }
 
-    private fun triggerMorphOut() {
+    internal fun triggerMorphOut() {
         when (phase) {
             PumpPhase.MORPH_IN -> {
                 pendingDeactivate = true
@@ -225,8 +228,6 @@ abstract class BasePumpService : Service() {
 
     protected fun pushFrame(frame: Bitmap) {
         val views = RemoteViews(packageName, layoutResId)
-        views.setInt(contentContainerId, "setMinimumWidth", squarePx)
-        views.setInt(contentContainerId, "setMinimumHeight", squarePx)
         views.setImageViewBitmap(morphImageViewId, frame)
 
         onPushFrameHook(views)
@@ -241,6 +242,18 @@ abstract class BasePumpService : Service() {
     protected open fun onPushFrameHook(views: RemoteViews) {}
 
     protected open fun onFrame(phase: PumpPhase, fraction: Float) {}
+
+    protected open fun onAnimationComplete() {}
+
+    protected fun resolveShapeColor(): Int {
+        val wrapper = ContextThemeWrapper(this, com.google.android.material.R.style.Theme_Material3_DynamicColors_DayNight)
+        val ta = wrapper.obtainStyledAttributes(intArrayOf(
+            com.google.android.material.R.attr.colorSurfaceContainer,
+        ))
+        val color = ta.getColor(0, 0xFF6750A4.toInt())
+        ta.recycle()
+        return color
+    }
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
@@ -258,7 +271,6 @@ abstract class BasePumpService : Service() {
 
     companion object {
         const val EXTRA_APPWIDGET_ID = "app_widget_id"
-        const val EXTRA_SHAPE_COLOR = "shape_color"
         const val ACTION_MORPH_IN = "morph_in"
         const val ACTION_MORPH_OUT = "morph_out"
 
@@ -270,6 +282,21 @@ abstract class BasePumpService : Service() {
 
         fun setActiveInstance(service: BasePumpService?) {
             activeInstance = service
+        }
+
+        fun updateWidgetSize(appWidgetId: Int, squarePx: Int) {
+            val instance = activeInstance ?: return
+
+            if (instance.widgetId != appWidgetId){
+                return
+            }
+
+            instance.squarePx = squarePx
+        }
+
+        @JvmStatic
+        fun requestMorphOut() {
+            activeInstance?.triggerMorphOut()
         }
     }
 }

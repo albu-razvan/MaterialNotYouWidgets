@@ -100,7 +100,8 @@ class MorphingEngine(private val numPoints: Int = 48) {
         path.close()
     }
 
-    fun renderRadiiToBitmap(
+    fun drawToCanvas(
+        canvas: Canvas,
         width: Int,
         height: Int,
         rA: FloatArray,
@@ -108,10 +109,8 @@ class MorphingEngine(private val numPoints: Int = 48) {
         t: Float,
         fillColor: Int,
         rotationDeg: Float = 0f
-    ): Bitmap {
+    ) {
         val radii = morphRadii(rA, rB, t)
-        val bitmap = createBitmap(width, height)
-        val canvas = Canvas(bitmap)
         val cx = width / 2f
         val cy = height / 2f
         val scale = minOf(width, height) * SHAPE_SCALE
@@ -126,6 +125,21 @@ class MorphingEngine(private val numPoints: Int = 48) {
         }
 
         canvas.drawPath(path, paint)
+    }
+
+    fun renderRadiiToBitmap(
+        width: Int,
+        height: Int,
+        rA: FloatArray,
+        rB: FloatArray,
+        t: Float,
+        fillColor: Int,
+        rotationDeg: Float = 0f
+    ): Bitmap {
+        val bitmap = createBitmap(width, height)
+        val canvas = Canvas(bitmap)
+
+        drawToCanvas(canvas, width, height, rA, rB, t, fillColor, rotationDeg)
 
         return bitmap
     }

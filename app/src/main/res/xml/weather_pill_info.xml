@@ -3,7 +3,7 @@
     android:minWidth="150dp"
     android:minHeight="150dp"
     android:updatePeriodMillis="1800000"
-    android:initialLayout="@layout/loading_layout"
+    android:initialLayout="@layout/initial_layout"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_description" />
