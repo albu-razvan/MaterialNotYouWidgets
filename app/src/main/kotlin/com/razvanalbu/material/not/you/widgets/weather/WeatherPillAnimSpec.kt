@@ -21,7 +21,7 @@ fun getSpecForPhase(phase: PumpPhase): FrameAnimSpec {
             containerScaleFrom = 1f,
             containerScaleTo = 0.6f,
             infoScaleFrom = 1f,
-            infoScaleTo = 0.7f,
+            infoScaleTo = 0.4f,
             alphaFrom = 1f,
             alphaTo = -1f,
             interpolator = PathInterpolator(0.9f, 0f, 0.3f, 1f)
@@ -30,8 +30,8 @@ fun getSpecForPhase(phase: PumpPhase): FrameAnimSpec {
         PumpPhase.ROTATE -> FrameAnimSpec(
             containerScaleFrom = 0.6f,
             containerScaleTo = 0.6f,
-            infoScaleFrom = 0.7f,
-            infoScaleTo = 0.7f,
+            infoScaleFrom = 0.4f,
+            infoScaleTo = 0.4f,
             alphaFrom = 0f,
             alphaTo = 0f,
             interpolator = LinearInterpolator()
@@ -40,7 +40,7 @@ fun getSpecForPhase(phase: PumpPhase): FrameAnimSpec {
         PumpPhase.MORPH_OUT -> FrameAnimSpec(
             containerScaleFrom = 0.6f,
             containerScaleTo = 1f,
-            infoScaleFrom = 0.7f,
+            infoScaleFrom = 0.4f,
             infoScaleTo = 1f,
             alphaFrom = -1f,
             alphaTo = 1f,

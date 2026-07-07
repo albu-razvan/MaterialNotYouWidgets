@@ -1,5 +1,6 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.widget.RemoteViews
@@ -45,6 +46,19 @@ class FramePumpService : BasePumpService() {
     override fun onAnimationComplete() {
         val views = RemoteViews(packageName, R.layout.weather_pill_layout)
         views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
+        views.setImageViewUri(R.id.content_image,
+            WidgetImageProvider.uri(packageName, widgetId))
+
+        val tapIntent = Intent(this, WeatherPillWidget::class.java).apply {
+            action = WeatherPillWidget.ACTION_TAP_REFRESH
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        }
+        val pi = PendingIntent.getBroadcast(
+            this, widgetId, tapIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        views.setOnClickPendingIntent(R.id.content_container, pi)
+
         AppWidgetManager.getInstance(this).updateAppWidget(widgetId, views)
     }
 

@@ -8,17 +8,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import java.util.concurrent.ConcurrentHashMap
 import android.os.SystemClock
 import android.util.Log
-import android.view.ContextThemeWrapper
 import android.view.View
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
-import com.razvanalbu.material.not.you.widgets.core.VariableFontProvider
+import com.razvanalbu.material.not.you.widgets.weather.WidgetImageProvider
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
-import kotlin.math.min
 
 class WeatherPillWidget : AppWidgetProvider() {
 
@@ -96,15 +95,29 @@ class WeatherPillWidget : AppWidgetProvider() {
             lastFraction = fraction
         }
 
+        val sharedTapPi = PendingIntent.getBroadcast(
+            context, appWidgetId,
+            Intent(context, WeatherPillWidget::class.java).apply {
+                action = ACTION_TAP_REFRESH
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         FramePumpService.onPushFrameView = { v ->
+            v.setOnClickPendingIntent(R.id.content_container, sharedTapPi)
+            v.setImageViewUri(R.id.content_image,
+                WidgetImageProvider.uri(context.packageName, appWidgetId))
+            v.setViewVisibility(R.id.loading_image, View.GONE)
+
             val spec = getSpecForPhase(FramePumpService.currentPhase)
             val t = spec.interpolator.getInterpolation(lastFraction)
             val containerScale = spec.containerScaleFrom + (spec.containerScaleTo - spec.containerScaleFrom) * t
             val infoScale = spec.infoScaleFrom + (spec.infoScaleTo - spec.infoScaleFrom) * t
             val opacity = spec.alphaFrom + (spec.alphaTo - spec.alphaFrom) * t
-            v.setFloat(R.id.weather_info_container, "setAlpha", opacity)
-            v.setFloat(R.id.weather_info_container, "setScaleX", infoScale)
-            v.setFloat(R.id.weather_info_container, "setScaleY", infoScale)
+            v.setFloat(R.id.content_image, "setAlpha", opacity)
+            v.setFloat(R.id.content_image, "setScaleX", infoScale)
+            v.setFloat(R.id.content_image, "setScaleY", infoScale)
             v.setFloat(R.id.content_container, "setScaleX", containerScale)
             v.setFloat(R.id.content_container, "setScaleY", containerScale)
         }
@@ -118,11 +131,15 @@ class WeatherPillWidget : AppWidgetProvider() {
                 scheduleServiceStart(context, appWidgetId, serviceIntent, 3000)
             }
         } else {
+            loadingAnimations.remove(appWidgetId)?.let { animHandler.removeCallbacks(it) }
+
             val loadingViews = RemoteViews(context.packageName, R.layout.weather_pill_layout)
             setupTapIntent(context, loadingViews, appWidgetId)
             loadingViews.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
             loadingViews.setViewVisibility(R.id.loading_image, View.VISIBLE)
             loadingViews.setImageViewResource(R.id.loading_image, R.drawable.loading_spinner)
+            loadingViews.setImageViewUri(R.id.content_image,
+                WidgetImageProvider.uri(context.packageName, appWidgetId))
             manager.updateAppWidget(appWidgetId, loadingViews)
 
             val rotationUpdater = object : Runnable {
@@ -132,7 +149,9 @@ class WeatherPillWidget : AppWidgetProvider() {
                     v.setFloat(R.id.loading_image, "setRotation", deg)
                     manager.updateAppWidget(appWidgetId, v)
                     deg = (deg + 15f) % 360f
-                    animHandler.postDelayed(this, 50L)
+                    if (loadingAnimations[appWidgetId] === this) {
+                        animHandler.postDelayed(this, 50L)
+                    }
                 }
             }
             loadingAnimations[appWidgetId] = rotationUpdater
@@ -146,10 +165,17 @@ class WeatherPillWidget : AppWidgetProvider() {
                 if (!isUserInitiated) {
                     views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
                     views.setViewVisibility(R.id.loading_image, View.VISIBLE)
+                    views.setImageViewUri(R.id.content_image,
+                        WidgetImageProvider.uri(context.packageName, appWidgetId))
                 }
                 manager.updateAppWidget(appWidgetId, views)
 
                 val result = WeatherApi.fetchWeatherData()
+
+                if (result is WeatherState.Success) {
+                    WidgetImageProvider.invalidateCache(appWidgetId)
+                }
+
                 mainHandler.post {
                     applyWeatherData(context, appWidgetId, result)
                     if (FramePumpService.currentPhase != PumpPhase.IDLE) {
@@ -172,42 +198,17 @@ class WeatherPillWidget : AppWidgetProvider() {
 
     private fun applyWeatherData(context: Context, appWidgetId: Int, result: WeatherState) {
         try {
-            val squarePx = WidgetUtils.getSquareSizePx(context, appWidgetId)
-            val w = squarePx.toFloat()
-            val h = squarePx.toFloat()
-            val minDim = min(w, h)
-
-            val (tempText, iconRes) = when (result) {
-                is WeatherState.Success -> result.temp to result.iconRes
-                else -> null to null
-            }
-
             loadingAnimations.remove(appWidgetId)?.let { animHandler.removeCallbacks(it) }
 
             val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
             setupTapIntent(context, views, appWidgetId)
-
-            if (tempText != null) {
-                val tf = VariableFontProvider.get(context, wght = 500f, wdth = 100f, grad = 20f, rond = 100f)
-                val textBitmap = WeatherPillInfoView.textOnlyBitmap(tempText, tf, squarePx, squarePx, minDim)
-                views.setImageViewBitmap(R.id.temperature_image, textBitmap)
-
-                val wrapper = ContextThemeWrapper(context, com.google.android.material.R.style.Theme_Material3_DynamicColors_DayNight)
-                val ta = wrapper.obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.colorOnSurface))
-                val textColor = ta.getColor(0, 0xFF1C1B1F.toInt())
-                ta.recycle()
-                views.setInt(R.id.temperature_image, "setColorFilter", textColor)
+            if (FramePumpService.currentPhase == PumpPhase.IDLE) {
+                views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
             }
 
-            if (iconRes != null) {
-                val iconSize = (minDim * 0.32f).toInt()
-                val iconLeft = (w * 0.26f).toInt()
-                val iconTop = (h * 0.55f).toInt()
-                val iconDrawable = context.getDrawable(iconRes)
-                if (iconDrawable != null) {
-                    val iconBmp = WeatherPillInfoView.iconOnBitmap(iconDrawable, iconSize, iconLeft, iconTop, squarePx, squarePx)
-                    views.setImageViewBitmap(R.id.weather_icon, iconBmp)
-                }
+            if (result is WeatherState.Success) {
+                views.setImageViewUri(R.id.content_image,
+                    WidgetImageProvider.uri(context.packageName, appWidgetId))
             }
 
             views.setViewVisibility(R.id.loading_image, View.GONE)
@@ -267,9 +268,8 @@ class WeatherPillWidget : AppWidgetProvider() {
         const val ACTION_TAP_REFRESH =
             "com.razvanalbu.material.not.you.widgets.TAP_REFRESH"
 
-        // Widget IDs that need morph-out once the service is running
         internal val pendingMorphOut = mutableSetOf<Int>()
-        internal val lastWeatherState = mutableMapOf<Int, WeatherState>()
+        internal val lastWeatherState = ConcurrentHashMap<Int, WeatherState>()
 
         private val animHandler = Handler(Looper.getMainLooper())
         private val loadingAnimations = mutableMapOf<Int, Runnable>()

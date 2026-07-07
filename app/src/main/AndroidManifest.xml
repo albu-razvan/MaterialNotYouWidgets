@@ -24,6 +24,12 @@
                 android:resource="@xml/weather_pill_info" />
         </receiver>
 
+        <provider
+            android:name=".weather.WidgetImageProvider"
+            android:authorities="${applicationId}.widgetimages"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+
         <service
             android:name=".weather.FramePumpService"
             android:exported="false"
