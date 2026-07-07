@@ -53,9 +53,23 @@ internal object WeatherApi {
                     .getJSONObject("summary").getString("symbol_code")
             }
 
+            val baseCode = symbolCode.replace("_day", "")
+                .replace("_night", "")
+                .replace("_polartwilight", "")
+            val tempInt = round(temp).toInt()
+            var iconRes = iconResForCode(symbolCode)
+            val isClearish = baseCode in setOf("clearsky", "fair", "partlycloudy")
+            if (isClearish) {
+                iconRes = when {
+                    tempInt > 30 -> R.drawable.very_hot
+                    tempInt < -5 -> R.drawable.very_cold
+                    else -> iconRes
+                }
+            }
+
             WeatherState.Success(
-                temp = round(temp).toInt(),
-                iconRes = iconResForCode(symbolCode)
+                temp = tempInt,
+                iconRes = iconRes
             )
         } catch (_: Exception) {
             WeatherState.Error
@@ -66,27 +80,40 @@ internal object WeatherApi {
         val isNight = symbolCode.endsWith("_night")
         val code = symbolCode.replace("_day", "")
             .replace("_night", "")
+            .replace("_polartwilight", "")
 
         return when (code) {
-            "clearsky" -> if (isNight) R.drawable.clear_night else R.drawable.clear_day
-            "fair" -> if (isNight) R.drawable.mostly_clear_night else R.drawable.mostly_clear_day
-            "partlycloudy" -> if (isNight) R.drawable.partly_cloudy_night else R.drawable.partly_cloudy_day
+            "clearsky" -> if (isNight) R.drawable.clear_night else R.drawable.sunny
+            "fair" -> if (isNight) R.drawable.mostly_clear_night else R.drawable.mostly_sunny
+            "partlycloudy" -> if (isNight) R.drawable.partly_cloudy_night else R.drawable.partly_cloudy
             "cloudy" -> R.drawable.cloudy
-            "fog" -> R.drawable.haze_fog_dust_smoke
-            "rain", "lightrain" -> R.drawable.drizzle
+            "fog" -> R.drawable.fog
+            "lightrain", "rain" -> R.drawable.drizzle
             "heavyrain" -> R.drawable.heavy_rain
-            "rainshowers", "lightrainshowers" -> if (isNight) R.drawable.scattered_showers_night else R.drawable.scattered_showers_day
-            "heavyrainshowers" -> R.drawable.heavy_rain
-            "snow", "lightsnow" -> R.drawable.flurries
+            "lightrainshowers" -> R.drawable.sunny_with_rain
+            "rainshowers" -> R.drawable.rain_with_cloudy
+            "heavyrainshowers" -> R.drawable.cloudy_with_rain
+            "lightsnow", "snow" -> R.drawable.flurries
             "heavysnow" -> R.drawable.heavy_snow
-            "snowshowers", "lightsnowshowers" -> if (isNight) R.drawable.scattered_snow_showers_night else R.drawable.scattered_snow_showers_day
-            "heavysnowshowers" -> R.drawable.heavy_snow
-            "sleet", "heavysleet" -> R.drawable.sleet_hail
-            "lightsleet", "sleetshowers", "lightsleetshowers" -> R.drawable.mixed_rain_hail_sleet
+            "lightsnowshowers", "snowshowers" -> R.drawable.showers_snow
+            "heavysnowshowers" -> R.drawable.snow_with_cloudy
+            "lightsleet", "sleet", "heavysleet" -> R.drawable.sleet_hail
+            "lightsleetshowers", "sleetshowers" -> R.drawable.rain_with_snow
             "heavysleetshowers" -> R.drawable.heavy_snow
-            "thunder" -> R.drawable.isolated_thunderstorms
-            "rainandthunder", "snowandthunder", "sleetandthunder" ->
-                if (isNight) R.drawable.isolated_scattered_thunderstorms_night else R.drawable.isolated_scattered_thunderstorms_day
+            "lightrainandthunder", "rainandthunder" -> R.drawable.thunderstorms
+            "heavyrainandthunder" -> R.drawable.strong_thunderstorms
+            "lightrainshowersandthunder", "rainshowersandthunder" -> R.drawable.thunderstorms
+            "heavyrainshowersandthunder" -> R.drawable.strong_thunderstorms
+            "lightsleetandthunder", "sleetandthunder" -> R.drawable.thunderstorms
+            "heavysleetandthunder" -> R.drawable.strong_thunderstorms
+            "lightsleetshowersandthunder", "sleetshowersandthunder" -> R.drawable.thunderstorms
+            "heavysleetshowersandthunder" -> R.drawable.strong_thunderstorms
+            "lightssleetshowersandthunder" -> R.drawable.thunderstorms
+            "lightsnowandthunder", "snowandthunder" -> R.drawable.thundersnow
+            "heavysnowandthunder" -> R.drawable.strong_thunderstorms
+            "lightsnowshowersandthunder", "snowshowersandthunder" -> R.drawable.thundersnow
+            "heavysnowshowersandthunder" -> R.drawable.strong_thunderstorms
+            "lightssnowshowersandthunder" -> R.drawable.thundersnow
             else -> R.drawable.cloudy
         }
     }

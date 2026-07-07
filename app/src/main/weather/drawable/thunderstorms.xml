@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillAlpha=".92"
+        android:fillType="evenOdd"
+        android:pathData="m21.13 31 5.752-11.78c.588-1.473 1.317-2.428 2.876-2.428H46.936c.038-.427.064-.853.064-1.292C47 6.936 40.009 0 31.394 0c-7.72 0-14.123 5.554-15.389 12.865a9.82 9.82 0 0 0-5.15-1.447C5.41 11.418 1 15.798 1 21.21c0 5.193 4.064 9.43 9.203 9.765V31H21.13Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="26"
+                android:centerY="17"
+                android:endColor="#E3E3E3"
+                android:gradientRadius="30"
+                android:startColor="#898989"
+                android:type="radial" />
+        </aapt:attr>
+    </path>
+    <path android:pathData="m18 33-4.24 4.107a5.656 5.656 0 0 0 0 8.2c2.347 2.266 6.147 2.266 8.48 0a5.656 5.656 0 0 0 0-8.2l-.04-.04L18 33ZM7 22l-4.24 4.107a5.656 5.656 0 0 0 0 8.2c2.347 2.266 6.147 2.266 8.48 0a5.656 5.656 0 0 0 0-8.2l-.04-.04L7 22Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endColor="#0B57D0"
+                android:endX="16"
+                android:endY="33"
+                android:startColor="#2E7AF5"
+                android:startX="16"
+                android:startY="2"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+    <path
+        android:fillType="evenOdd"
+        android:pathData="M30.667 21 24 34.754h6L29.253 47 44 30.958l-5.333-.026L44 21H30.667Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endColor="#E47100"
+                android:endX="42"
+                android:endY="44"
+                android:startColor="#FCB224"
+                android:startX="30.5"
+                android:startY="22"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+</vector>

@@ -27,9 +27,9 @@
             <gradient
                 android:centerX="30"
                 android:centerY="25"
-                android:endColor="#E9E9E9"
+                android:endColor="#ABABAB"
                 android:gradientRadius="28"
-                android:startColor="#FFFFFF"
+                android:startColor="#757575"
                 android:type="radial" />
         </aapt:attr>
     </path>

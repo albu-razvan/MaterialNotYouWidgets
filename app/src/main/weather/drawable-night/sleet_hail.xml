@@ -6,23 +6,23 @@
     android:viewportWidth="48"
     android:viewportHeight="48">
     <path
-        android:fillAlpha=".95"
         android:fillType="evenOdd"
         android:pathData="M47 16.5c0 8.358-6.662 15.172-15 15.488V32H11v-.002h-.143C5.413 31.999 1 27.617 1 22.21c0-5.407 4.413-9.79 9.857-9.79 1.89 0 3.654.528 5.154 1.444C17.271 6.559 23.68 1 31.393 1 40.013 1 47 7.94 47 16.5Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:centerX="26"
-                android:centerY="17"
-                android:endColor="#E3E3E3"
-                android:gradientRadius="30"
-                android:startColor="#B4B4B4"
-                android:type="radial" />
+                android:endColor="#757575"
+                android:endX="30.9"
+                android:endY="30.083"
+                android:startColor="#474747"
+                android:startX="8.558"
+                android:startY="11.527"
+                android:type="linear" />
         </aapt:attr>
     </path>
     <path
-        android:fillColor="#474747"
+        android:fillColor="#C7C7C7"
         android:pathData="m9.44 21.72 5.44 5.439-5.44 5.44L4 27.158zM23.04 35.316l5.44 5.44-5.44 5.44-5.44-5.44z" />
     <path
-        android:fillColor="#5E5E5E"
+        android:fillColor="#ABABAB"
         android:pathData="m28.48 19 2.72 2.72-16.32 16.318-2.72-2.72zM35.28 25.799 38 28.518l-8.16 8.159-2.72-2.72z" />
 </vector>
