@@ -2,4 +2,15 @@
     <string name="app_name">Material Not You Widgets</string>
     <string name="widget_name">Weather (Pill)</string>
     <string name="widget_description">Weather widget with Material You Pill shape</string>
+    <string name="no_results">No results found. Try a different search.</string>
+    <string name="location">Location</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search_for_a_location">Search for a location</string>
+    <string name="search_short_list_gag_1">Quality over quantity.</string>
+    <string name="search_short_list_gag_2">Small list, big potential.</string>
+    <string name="search_short_list_gag_3">Tiny list. Mighty results.</string>
+    <string name="search_short_list_gag_4">The list is on a diet today.</string>
+    <string name="search_short_list_gag_5">Not many showed up. Awkward.</string>
+    <string name="search_short_list_gag_6">A cozy little collection.</string>
+    <string name="nominatim_attribution">Search results © <a href="https://nominatim.openstreetmap.org">OpenStreetMap contributors</a></string>
 </resources>

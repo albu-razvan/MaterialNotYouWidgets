@@ -9,18 +9,21 @@ import java.net.URL
 import kotlin.math.round
 
 internal object WeatherApi {
-    private const val MET_API_URL =
-        "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=59.3293&lon=18.0686"
     private const val USER_AGENT = "MaterialNotYouWidgets/1.0"
+    private const val TIMEOUT = 10_000
 
-    fun fetchWeatherData(): WeatherState {
+    private fun buildUrl(lat: Double, lon: Double): String {
+        return "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=$lat&lon=$lon"
+    }
+
+    fun fetchWeatherData(lat: Double, lon: Double): WeatherState {
         return try {
-            val url = URL(MET_API_URL)
+            val url = URL(buildUrl(lat, lon))
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("User-Agent", USER_AGENT)
-            conn.connectTimeout = 10000
-            conn.readTimeout = 10000
+            conn.connectTimeout = TIMEOUT
+            conn.readTimeout = TIMEOUT
 
             val reader = BufferedReader(InputStreamReader(conn.inputStream))
             val response = reader.readText()

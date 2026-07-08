@@ -35,42 +35,38 @@ class WidgetImageProvider : ContentProvider() {
         val widgetId = segments[1].toIntOrNull()
             ?: throw FileNotFoundException("Invalid widget ID in URI")
         val nightMode = ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val cacheKey = "${widgetId}_content_$nightMode"
+        val generation = uri.getQueryParameter("g")?.toIntOrNull() ?: 0
+        val cacheKey = "${widgetId}_content_${nightMode}_g$generation"
+        val state = WeatherPillWidget.lastWeatherState[widgetId] as? WeatherState.Success
+            ?: throw FileNotFoundException("No data for widget $widgetId")
+        val width = WidgetUtils.getSquareSizePx(ctx, widgetId)
 
         val bytes = pngCache.computeIfAbsent(cacheKey) { _ ->
-            val state = WeatherPillWidget.lastWeatherState[widgetId] as? WeatherState.Success
-                ?: throw FileNotFoundException("No data for widget $widgetId")
-
-            val width = WidgetUtils.getSquareSizePx(ctx, widgetId)
-
             val bitmap = renderMerged(ctx, state.temp, state.iconRes, width, width)
-
-            val bytes = ByteArrayOutputStream().use { baos ->
+            ByteArrayOutputStream().use { baos ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
                 bitmap.recycle()
                 baos.toByteArray()
             }
+        }
 
-            val otherNight = if (nightMode == (Configuration.UI_MODE_NIGHT_NO shl 4))
-                Configuration.UI_MODE_NIGHT_YES shl 4
-            else
-                Configuration.UI_MODE_NIGHT_NO shl 4
-            val otherKey = "${widgetId}_content_$otherNight"
-            if (!pngCache.containsKey(otherKey)) {
-                val otherCfg = Configuration(ctx.resources.configuration).apply {
-                    uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or otherNight
-                }
-                val otherCtx = ctx.createConfigurationContext(otherCfg)
-                val otherBmp = renderMerged(otherCtx, state.temp, state.iconRes, width, width)
-                val otherBytes = ByteArrayOutputStream().use { baos ->
-                    otherBmp.compress(Bitmap.CompressFormat.PNG, 100, baos)
-                    otherBmp.recycle()
-                    baos.toByteArray()
-                }
-                pngCache.putIfAbsent(otherKey, otherBytes)
+        val otherNight = if (nightMode == (Configuration.UI_MODE_NIGHT_NO shl 4))
+            Configuration.UI_MODE_NIGHT_YES shl 4
+        else
+            Configuration.UI_MODE_NIGHT_NO shl 4
+        val otherKey = "${widgetId}_content_${otherNight}_g$generation"
+        if (!pngCache.containsKey(otherKey)) {
+            val otherCfg = Configuration(ctx.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or otherNight
             }
-
-            bytes
+            val otherCtx = ctx.createConfigurationContext(otherCfg)
+            val otherBmp = renderMerged(otherCtx, state.temp, state.iconRes, width, width)
+            val otherBytes = ByteArrayOutputStream().use { baos ->
+                otherBmp.compress(Bitmap.CompressFormat.PNG, 100, baos)
+                otherBmp.recycle()
+                baos.toByteArray()
+            }
+            pngCache.putIfAbsent(otherKey, otherBytes)
         }
 
         val pipe = ParcelFileDescriptor.createPipe()
@@ -100,17 +96,25 @@ class WidgetImageProvider : ContentProvider() {
         private const val TAG = "WidgetImageProvider"
 
         private val pngCache = ConcurrentHashMap<String, ByteArray>()
+        private val generationMap = ConcurrentHashMap<Int, Int>()
+
+        fun nextGeneration(widgetId: Int) {
+            generationMap.merge(widgetId, 1) { old, _ -> old + 1 }
+        }
 
         fun invalidateCache(widgetId: Int) {
             pngCache.keys.removeAll { it.startsWith("${widgetId}_") }
         }
 
-        fun uri(packageName: String, widgetId: Int): Uri =
-            Uri.Builder()
+        fun uri(packageName: String, widgetId: Int): Uri {
+            val gen = generationMap[widgetId] ?: 0
+            return Uri.Builder()
                 .scheme("content")
                 .authority(packageName + AUTHORITY_SUFFIX)
                 .path("render/$widgetId/content")
+                .appendQueryParameter("g", gen.toString())
                 .build()
+        }
     }
 }
 
