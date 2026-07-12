@@ -36,6 +36,8 @@ class WeatherPillWidget : AppWidgetProvider() {
                     context, appWidgetManager,
                     appWidgetId, isUserInitiated = false
                 )
+
+                schedulePeriodicRefresh(context, appWidgetId)
             }
         }
     }
@@ -88,8 +90,10 @@ class WeatherPillWidget : AppWidgetProvider() {
                         return
                     }
 
+                    schedulePeriodicRefresh(context, appWidgetId)
                     refreshAndAnimate(context, AppWidgetManager.getInstance(context), appWidgetId)
                 }
+
                 return
             }
 
@@ -100,6 +104,7 @@ class WeatherPillWidget : AppWidgetProvider() {
                 )
 
                 if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    schedulePeriodicRefresh(context, appWidgetId)
                     animHandler.postDelayed({
                         refreshAndAnimate(
                             context,
@@ -109,12 +114,52 @@ class WeatherPillWidget : AppWidgetProvider() {
                         )
                     }, 500L)
                 }
+
                 return
             }
 
+            ACTION_PERIODIC_REFRESH -> {
+                val appWidgetId = intent.getIntExtra(
+                    AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID
+                )
+
+                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    schedulePeriodicRefresh(context, appWidgetId)
+
+                    refreshAndAnimate(
+                        context,
+                        AppWidgetManager.getInstance(context),
+                        appWidgetId,
+                        isUserInitiated = false
+                    )
+                }
+
+                return
+            }
+
+            Intent.ACTION_BOOT_COMPLETED -> {
+                val appWidgetIds = AppWidgetManager.getInstance(context).getAppWidgetIds(
+                    android.content.ComponentName(context, WeatherPillWidget::class.java)
+                )
+
+                for (appWidgetId in appWidgetIds) {
+                    schedulePeriodicRefresh(context, appWidgetId)
+                }
+
+                return
+            }
         }
 
         super.onReceive(context, intent)
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+
+        for (appWidgetId in appWidgetIds) {
+            cancelPeriodicRefresh(context, appWidgetId)
+        }
     }
 
     private fun refreshAndAnimate(
@@ -362,6 +407,38 @@ class WeatherPillWidget : AppWidgetProvider() {
         )
     }
 
+    private fun schedulePeriodicRefresh(context: Context, appWidgetId: Int) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.setAndAllowWhileIdle(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS,
+            PendingIntent.getBroadcast(
+                context,
+                appWidgetId,
+                Intent(context, WeatherPillWidget::class.java).apply {
+                    action = ACTION_PERIODIC_REFRESH
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                },
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        )
+    }
+
+    private fun cancelPeriodicRefresh(context: Context, appWidgetId: Int) {
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, appWidgetId,
+            Intent(context, WeatherPillWidget::class.java).apply {
+                action = ACTION_PERIODIC_REFRESH
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
+        ) ?: return
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
+    }
+
     private fun setupTapIntent(context: Context, views: RemoteViews, appWidgetId: Int) {
         views.setOnClickPendingIntent(
             R.id.content_container,
@@ -405,6 +482,10 @@ class WeatherPillWidget : AppWidgetProvider() {
             "com.razvanalbu.material.not.you.widgets.TAP_REFRESH"
         const val ACTION_SILENT_REFRESH =
             "com.razvanalbu.material.not.you.widgets.SILENT_REFRESH"
+        const val ACTION_PERIODIC_REFRESH =
+            "com.razvanalbu.material.not.you.widgets.PERIODIC_REFRESH"
+
+        private const val REFRESH_INTERVAL_MS = 1800000L
 
         internal val pendingMorphOut = mutableSetOf<Int>()
         internal val lastWeatherState = ConcurrentHashMap<Int, WeatherState>()
