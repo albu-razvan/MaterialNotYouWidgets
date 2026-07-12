@@ -62,7 +62,6 @@ class FramePumpService : BasePumpService() {
                     TAG,
                     "[$widgetId] content_image <- ${if (state.type == WeatherState.ErrorType.NETWORK) "ic_no_internet" else "ic_error"} (animComplete)"
                 )
-                views.setFloat(R.id.content_image, "setRotation", 0f)
                 views.setImageViewResource(
                     R.id.content_image,
                     if (state.type == WeatherState.ErrorType.NETWORK)
