@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -9,10 +8,7 @@ android {
 
     sourceSets {
         getByName("main") {
-            res.srcDirs(
-                "src/main/res",
-                "src/main/weather"
-            )
+            res.directories.add("src/main/weather")
         }
     }
 
@@ -36,11 +32,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
     }
 }
 

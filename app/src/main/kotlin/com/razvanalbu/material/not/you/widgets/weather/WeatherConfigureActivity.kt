@@ -257,7 +257,7 @@ class WeatherConfigureActivity : AppCompatActivity() {
 
                         subtitle.text = buildString {
                             val hierarchy = listOfNotNull(
-                                item?.city?.takeIf { it != item?.name },
+                                item?.city?.takeIf { it != item.name },
                                 item?.state,
                                 item?.country,
                             )
