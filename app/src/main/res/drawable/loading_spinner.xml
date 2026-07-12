@@ -5,6 +5,7 @@
     android:viewportWidth="368"
     android:viewportHeight="368">
     <path
+        android:strokeAlpha="0.5"
         android:pathData="M 184 164 A 20 20 0 1 1 164 184"
         android:strokeWidth="6"
         android:strokeColor="?attr/colorSecondary"

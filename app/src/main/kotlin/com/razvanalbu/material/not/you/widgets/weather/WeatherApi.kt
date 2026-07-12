@@ -3,6 +3,7 @@ package com.razvanalbu.material.not.you.widgets.weather
 import com.razvanalbu.material.not.you.widgets.R
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -30,8 +31,10 @@ internal object WeatherApi {
             reader.close()
 
             parseWeather(response)
+        } catch (_: IOException) {
+            WeatherState.Error(WeatherState.ErrorType.NETWORK)
         } catch (_: Exception) {
-            WeatherState.Error
+            WeatherState.Error(WeatherState.ErrorType.UNKNOWN)
         }
     }
 
@@ -75,7 +78,7 @@ internal object WeatherApi {
                 iconRes = iconRes
             )
         } catch (_: Exception) {
-            WeatherState.Error
+            WeatherState.Error(WeatherState.ErrorType.UNKNOWN)
         }
     }
 

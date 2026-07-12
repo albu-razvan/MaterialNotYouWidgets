@@ -6,5 +6,12 @@ sealed class WeatherState {
         val iconRes: Int,
     ) : WeatherState()
 
-    data object Error : WeatherState()
+    data class Error(
+        val type: ErrorType = ErrorType.UNKNOWN
+    ) : WeatherState()
+
+    enum class ErrorType {
+        NETWORK,
+        UNKNOWN
+    }
 }
