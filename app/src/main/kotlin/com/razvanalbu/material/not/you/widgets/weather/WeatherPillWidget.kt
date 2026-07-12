@@ -32,8 +32,10 @@ class WeatherPillWidget : AppWidgetProvider() {
             if (config == null) {
                 showUnconfiguredState(context, appWidgetManager, appWidgetId)
             } else {
-                refreshAndAnimate(context, appWidgetManager,
-                    appWidgetId, isUserInitiated = false)
+                refreshAndAnimate(
+                    context, appWidgetManager,
+                    appWidgetId, isUserInitiated = false
+                )
             }
         }
     }
@@ -46,8 +48,10 @@ class WeatherPillWidget : AppWidgetProvider() {
     ) {
         Log.d(TAG, "options changed for $appWidgetId")
 
-        BasePumpService.updateWidgetSize(appWidgetId,
-            WidgetUtils.getSquareSizePx(context, appWidgetId))
+        BasePumpService.updateWidgetSize(
+            appWidgetId,
+            WidgetUtils.getSquareSizePx(context, appWidgetId)
+        )
 
         if (FramePumpService.currentPhase == PumpPhase.IDLE) {
             val config = WidgetConfig.load(context, appWidgetId)
@@ -55,6 +59,7 @@ class WeatherPillWidget : AppWidgetProvider() {
                 showUnconfiguredState(context, appWidgetManager, appWidgetId)
                 return
             }
+
             val cached = lastWeatherState[appWidgetId]
             if (cached != null) {
                 applyWeatherData(context, appWidgetId, cached)
@@ -78,6 +83,7 @@ class WeatherPillWidget : AppWidgetProvider() {
                         openConfigActivity(context, appWidgetId)
                         return
                     }
+
                     if (FramePumpService.currentPhase != PumpPhase.IDLE) {
                         return
                     }
@@ -95,7 +101,12 @@ class WeatherPillWidget : AppWidgetProvider() {
 
                 if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                     animHandler.postDelayed({
-                        refreshAndAnimate(context, AppWidgetManager.getInstance(context), appWidgetId, isUserInitiated = false)
+                        refreshAndAnimate(
+                            context,
+                            AppWidgetManager.getInstance(context),
+                            appWidgetId,
+                            isUserInitiated = false
+                        )
                     }, 500L)
                 }
                 return
@@ -113,65 +124,77 @@ class WeatherPillWidget : AppWidgetProvider() {
         startAction: String = BasePumpService.ACTION_MORPH_IN,
         isUserInitiated: Boolean = true
     ) {
+        var lastFraction = 0f
         val serviceIntent = Intent(context, FramePumpService::class.java).apply {
             action = startAction
             putExtra(FramePumpService.EXTRA_APPWIDGET_ID, appWidgetId)
         }
 
-        var lastFraction = 0f
-
         FramePumpService.onAnimationFrame = { _, fraction ->
             lastFraction = fraction
         }
 
-        FramePumpService.onPushFrameView = { v ->
+        // @formatter:off
+        FramePumpService.onPushFrameView = { views ->
             val spec = getSpecForPhase(FramePumpService.currentPhase)
             val t = spec.interpolator.getInterpolation(lastFraction)
             val containerScale = spec.containerScaleFrom + (spec.containerScaleTo - spec.containerScaleFrom) * t
             val infoScale = spec.infoScaleFrom + (spec.infoScaleTo - spec.infoScaleFrom) * t
             val opacity = spec.alphaFrom + (spec.alphaTo - spec.alphaFrom) * t
-            v.setFloat(R.id.content_image, "setAlpha", opacity)
-            v.setFloat(R.id.content_image, "setScaleX", infoScale)
-            v.setFloat(R.id.content_image, "setScaleY", infoScale)
-            v.setFloat(R.id.content_container, "setScaleX", containerScale)
-            v.setFloat(R.id.content_container, "setScaleY", containerScale)
+            views.setFloat(R.id.content_image, "setAlpha", opacity)
+            views.setFloat(R.id.content_image, "setScaleX", infoScale)
+            views.setFloat(R.id.content_image, "setScaleY", infoScale)
+            views.setFloat(R.id.content_container, "setScaleX", containerScale)
+            views.setFloat(R.id.content_container, "setScaleY", containerScale)
         }
+        // @formatter:on
 
         val mainHandler = Handler(Looper.getMainLooper())
 
         if (isUserInitiated) {
             val initialViews = RemoteViews(context.packageName, R.layout.weather_pill_layout)
             setupTapIntent(context, initialViews, appWidgetId)
-            initialViews.setImageViewUri(R.id.content_image,
-                WidgetImageProvider.uri(context.packageName, appWidgetId))
-            initialViews.setViewVisibility(R.id.loading_image, View.GONE)
+
+
+            initialViews.setImageViewUri(
+                R.id.content_image,
+                WidgetImageProvider.uri(context.packageName, appWidgetId)
+            )
+
+            Log.d(TAG, "[$appWidgetId] content_image <- URI (user-initiated)")
+
             manager.updateAppWidget(appWidgetId, initialViews)
 
             try {
                 context.startForegroundService(serviceIntent)
-            } catch (e: Exception) {
-                scheduleServiceStart(context, appWidgetId, serviceIntent, 3000)
+            } catch (_: Exception) {
+                scheduleServiceStart(context, appWidgetId, serviceIntent)
             }
         } else {
             loadingAnimations.remove(appWidgetId)?.let { animHandler.removeCallbacks(it) }
 
             val loadingViews = RemoteViews(context.packageName, R.layout.weather_pill_layout)
             setupTapIntent(context, loadingViews, appWidgetId)
+
             loadingViews.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-            loadingViews.setViewVisibility(R.id.content_image, View.GONE)
-            loadingViews.setViewVisibility(R.id.loading_image, View.VISIBLE)
-            loadingViews.setImageViewResource(R.id.loading_image, R.drawable.loading_spinner)
-            loadingViews.setImageViewUri(R.id.content_image,
-                WidgetImageProvider.uri(context.packageName, appWidgetId))
+            loadingViews.setViewVisibility(R.id.content_image, View.VISIBLE)
+            loadingViews.setImageViewResource(R.id.content_image, R.drawable.loading_spinner)
+
+            Log.d(TAG, "[$appWidgetId] content_image <- loading_spinner")
+
             manager.updateAppWidget(appWidgetId, loadingViews)
 
             val rotationUpdater = object : Runnable {
                 var deg = 0f
+
                 override fun run() {
-                    val v = RemoteViews(context.packageName, R.layout.weather_pill_layout)
-                    v.setFloat(R.id.loading_image, "setRotation", deg)
-                    manager.updateAppWidget(appWidgetId, v)
+                    val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
+                    views.setFloat(R.id.content_image, "setRotation", deg)
+
+                    manager.updateAppWidget(appWidgetId, views)
+
                     deg = (deg + 15f) % 360f
+
                     if (loadingAnimations[appWidgetId] === this) {
                         animHandler.postDelayed(this, 50L)
                     }
@@ -184,23 +207,26 @@ class WeatherPillWidget : AppWidgetProvider() {
         Thread {
             try {
                 val config = WidgetConfig.load(context, appWidgetId)
+
                 if (config == null) {
                     mainHandler.post {
                         showUnconfiguredState(context, manager, appWidgetId)
                     }
+
                     return@Thread
                 }
 
                 val dataViews = RemoteViews(context.packageName, R.layout.weather_pill_layout)
                 setupTapIntent(context, dataViews, appWidgetId)
+
                 if (!isUserInitiated) {
                     dataViews.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-                    dataViews.setViewVisibility(R.id.content_image, View.GONE)
-                    dataViews.setViewVisibility(R.id.loading_image, View.VISIBLE)
-                    dataViews.setImageViewResource(R.id.loading_image, R.drawable.loading_spinner)
-                    dataViews.setImageViewUri(R.id.content_image,
-                        WidgetImageProvider.uri(context.packageName, appWidgetId))
+                    dataViews.setViewVisibility(R.id.content_image, View.VISIBLE)
+                    dataViews.setImageViewResource(R.id.content_image, R.drawable.loading_spinner)
+
+                    Log.d(TAG, "[$appWidgetId] content_image <- loading_spinner (thread)")
                 }
+
                 manager.updateAppWidget(appWidgetId, dataViews)
 
                 val result = WeatherApi.fetchWeatherData(config.lat, config.lon)
@@ -208,17 +234,56 @@ class WeatherPillWidget : AppWidgetProvider() {
                 WidgetImageProvider.nextGeneration(appWidgetId)
                 WidgetImageProvider.invalidateCache(appWidgetId)
 
-                mainHandler.post {
-                    applyWeatherData(context, appWidgetId, result)
-                    if (FramePumpService.currentPhase != PumpPhase.IDLE) {
-                        pendingMorphOut.add(appWidgetId)
-                        BasePumpService.requestMorphOut()
+                if (result is WeatherState.Success) {
+                    val size = WidgetUtils.getSquareSizePx(context, appWidgetId)
+                    val bitmap = renderMerged(context, result.temp, result.iconRes, size, size)
+
+                    WidgetImageProvider.precache(context, appWidgetId, result.temp, result.iconRes)
+
+                    postApplyAndFinish(mainHandler, isUserInitiated) {
+                        loadingAnimations.remove(appWidgetId)
+                            ?.let { animHandler.removeCallbacks(it) }
+
+                        val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
+                        setupTapIntent(context, views, appWidgetId)
+
+                        views.setViewVisibility(R.id.content_image, View.VISIBLE)
+                        views.setFloat(R.id.content_image, "setRotation", 0f)
+                        views.setImageViewBitmap(R.id.content_image, bitmap)
+
+                        Log.d(TAG, "[$appWidgetId] content_image <- bitmap (applySuccess)")
+
+                        bitmap.recycle()
+
+                        lastWeatherState[appWidgetId] = result
+                        AppWidgetManager.getInstance(context)
+                            .updateAppWidget(appWidgetId, views)
+
+                        if (FramePumpService.currentPhase != PumpPhase.IDLE) {
+                            pendingMorphOut.add(appWidgetId)
+                            BasePumpService.requestMorphOut()
+                        }
+                    }
+                } else {
+                    postApplyAndFinish(mainHandler, isUserInitiated) {
+                        applyWeatherData(context, appWidgetId, result)
+
+                        if (FramePumpService.currentPhase != PumpPhase.IDLE) {
+                            pendingMorphOut.add(appWidgetId)
+                            BasePumpService.requestMorphOut()
+                        }
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "refreshAndAnimate failed", e)
-                mainHandler.post {
-                    applyWeatherData(context, appWidgetId, WeatherState.Error)
+
+                postApplyAndFinish(mainHandler, isUserInitiated) {
+                    applyWeatherData(
+                        context,
+                        appWidgetId,
+                        WeatherState.Error(WeatherState.ErrorType.UNKNOWN)
+                    )
+
                     if (FramePumpService.currentPhase != PumpPhase.IDLE) {
                         pendingMorphOut.add(appWidgetId)
                         BasePumpService.requestMorphOut()
@@ -234,17 +299,34 @@ class WeatherPillWidget : AppWidgetProvider() {
 
             val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
             setupTapIntent(context, views, appWidgetId)
+
             if (FramePumpService.currentPhase == PumpPhase.IDLE) {
                 views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
             }
 
             if (result is WeatherState.Success) {
                 views.setViewVisibility(R.id.content_image, View.VISIBLE)
-                views.setImageViewUri(R.id.content_image,
-                    WidgetImageProvider.uri(context.packageName, appWidgetId))
-            }
+                views.setFloat(R.id.content_image, "setRotation", 0f)
+                views.setImageViewUri(
+                    R.id.content_image,
+                    WidgetImageProvider.uri(context.packageName, appWidgetId)
+                )
 
-            views.setViewVisibility(R.id.loading_image, View.GONE)
+                Log.d(TAG, "[$appWidgetId] content_image <- URI (applySuccess)")
+            } else if (result is WeatherState.Error) {
+                val errorIcon =
+                    if (result.type == WeatherState.ErrorType.NETWORK) R.drawable.ic_no_internet
+                    else R.drawable.ic_error
+
+                views.setViewVisibility(R.id.content_image, View.VISIBLE)
+                views.setFloat(R.id.content_image, "setRotation", 0f)
+                views.setImageViewResource(R.id.content_image, errorIcon)
+
+                Log.d(
+                    TAG,
+                    "[$appWidgetId] content_image <- ${if (result.type == WeatherState.ErrorType.NETWORK) "ic_no_internet" else "ic_error"} (applyError)"
+                )
+            }
 
             lastWeatherState[appWidgetId] = result
             AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, views)
@@ -260,10 +342,14 @@ class WeatherPillWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
         setupTapIntent(context, views, appWidgetId)
+
         views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-        views.setViewVisibility(R.id.content_image, View.GONE)
-        views.setViewVisibility(R.id.loading_image, View.VISIBLE)
-        views.setImageViewResource(R.id.loading_image, R.drawable.ic_gear)
+        views.setViewVisibility(R.id.content_image, View.VISIBLE)
+        views.setFloat(R.id.content_image, "setRotation", 0f)
+        views.setImageViewResource(R.id.content_image, R.drawable.ic_gear)
+
+        Log.d(TAG, "[$appWidgetId] content_image <- ic_gear")
+
         manager.updateAppWidget(appWidgetId, views)
     }
 
@@ -272,6 +358,7 @@ class WeatherPillWidget : AppWidgetProvider() {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+
         context.startActivity(intent)
     }
 
@@ -282,7 +369,9 @@ class WeatherPillWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
         setupTapIntent(context, views, appWidgetId)
+
         views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
+
         manager.updateAppWidget(appWidgetId, views)
     }
 
@@ -290,31 +379,53 @@ class WeatherPillWidget : AppWidgetProvider() {
         context: Context,
         appWidgetId: Int,
         serviceIntent: Intent,
-        delayMs: Long
+        delayMs: Long = 3000L
     ) {
-        val pi = PendingIntent.getForegroundService(
-            context, appWidgetId, serviceIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.setAndAllowWhileIdle(
             AlarmManager.ELAPSED_REALTIME_WAKEUP,
             SystemClock.elapsedRealtime() + delayMs,
-            pi
+            PendingIntent.getForegroundService(
+                context, appWidgetId, serviceIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
         )
     }
 
     private fun setupTapIntent(context: Context, views: RemoteViews, appWidgetId: Int) {
-        val tapIntent = Intent(context, WeatherPillWidget::class.java).apply {
-            action = ACTION_TAP_REFRESH
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        }
-        val pi = PendingIntent.getBroadcast(
-            context, appWidgetId, tapIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        views.setOnClickPendingIntent(
+            R.id.content_container,
+            PendingIntent.getBroadcast(
+                context, appWidgetId,
+                Intent(context, WeatherPillWidget::class.java).apply {
+                    action = ACTION_TAP_REFRESH
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                },
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
         )
+    }
 
-        views.setOnClickPendingIntent(R.id.content_container, pi)
+    private fun postApplyAndFinish(
+        mainHandler: Handler,
+        isUserInitiated: Boolean,
+        applyAndFinish: () -> Unit
+    ) {
+        mainHandler.post {
+            if (isUserInitiated && FramePumpService.currentPhase == PumpPhase.MORPH_IN) {
+                animHandler.post(object : Runnable {
+                    override fun run() {
+                        if (FramePumpService.currentPhase == PumpPhase.MORPH_IN) {
+                            animHandler.postDelayed(this, 10)
+                        } else {
+                            applyAndFinish()
+                        }
+                    }
+                })
+            } else {
+                applyAndFinish()
+            }
+        }
     }
 
     companion object {

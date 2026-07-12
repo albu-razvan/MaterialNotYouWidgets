@@ -14,6 +14,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.ContextThemeWrapper
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.createBitmap
 import com.razvanalbu.material.not.you.widgets.core.VariableFontProvider
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
@@ -27,69 +28,164 @@ class WidgetImageProvider : ContentProvider() {
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val ctx = context ?: throw FileNotFoundException("Provider not initialized")
+
+        val widgetId = extractWidgetId(uri)
+        val generation = uri.getQueryParameter("g")?.toIntOrNull() ?: 0
+        val nightMode = currentNightMode(ctx)
+
+        Log.d(TAG, "openFile widget=$widgetId generation=$generation")
+
+        val state = WeatherPillWidget.lastWeatherState[widgetId] as? WeatherState.Success
+            ?: throw FileNotFoundException("No weather data for widget $widgetId")
+
+        val size = WidgetUtils.getSquareSizePx(ctx, widgetId)
+
+        val bytes = getOrCreateImage(
+            context = ctx,
+            widgetId = widgetId,
+            generation = generation,
+            nightMode = nightMode,
+            temp = state.temp,
+            iconRes = state.iconRes,
+            size = size
+        )
+
+        precacheOppositeTheme(
+            ctx,
+            widgetId,
+            generation,
+            state.temp,
+            state.iconRes,
+            size,
+            nightMode
+        )
+
+        return createPipe(bytes, cacheKey(widgetId, nightMode, generation))
+    }
+
+    override fun getType(uri: Uri) = "image/png"
+
+    override fun query(
+        uri: Uri,
+        projection: Array<String>?,
+        selection: String?,
+        selectionArgs: Array<String>?,
+        sortOrder: String?
+    ): Cursor? = null
+
+    override fun insert(uri: Uri, values: ContentValues?) = null
+
+    override fun update(
+        uri: Uri,
+        values: ContentValues?,
+        selection: String?,
+        selectionArgs: Array<String>?
+    ) = 0
+
+    override fun delete(
+        uri: Uri,
+        selection: String?,
+        selectionArgs: Array<String>?
+    ) = 0
+
+    private fun extractWidgetId(uri: Uri): Int {
         val segments = uri.pathSegments
+
         if (segments.size < 2 || segments[0] != "render") {
             throw FileNotFoundException("Invalid URI: $uri")
         }
 
-        val widgetId = segments[1].toIntOrNull()
-            ?: throw FileNotFoundException("Invalid widget ID in URI")
-        val nightMode = ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val generation = uri.getQueryParameter("g")?.toIntOrNull() ?: 0
-        val cacheKey = "${widgetId}_content_${nightMode}_g$generation"
-        val state = WeatherPillWidget.lastWeatherState[widgetId] as? WeatherState.Success
-            ?: throw FileNotFoundException("No data for widget $widgetId")
-        val width = WidgetUtils.getSquareSizePx(ctx, widgetId)
+        return segments[1].toIntOrNull()
+            ?: throw FileNotFoundException("Invalid widget ID")
+    }
 
-        val bytes = pngCache.computeIfAbsent(cacheKey) { _ ->
-            val bitmap = renderMerged(ctx, state.temp, state.iconRes, width, width)
-            ByteArrayOutputStream().use { baos ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
-                bitmap.recycle()
-                baos.toByteArray()
-            }
+    private fun currentNightMode(context: Context): Int =
+        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+
+    private fun getOrCreateImage(
+        context: Context,
+        widgetId: Int,
+        generation: Int,
+        nightMode: Int,
+        temp: Int,
+        iconRes: Int,
+        size: Int
+    ): ByteArray {
+        val key = cacheKey(widgetId, nightMode, generation)
+
+        return pngCache.computeIfAbsent(key) {
+            renderPng(context, temp, iconRes, size)
+        }
+    }
+
+    private fun precacheOppositeTheme(
+        context: Context,
+        widgetId: Int,
+        generation: Int,
+        temp: Int,
+        iconRes: Int,
+        size: Int,
+        currentNightMode: Int
+    ) {
+        val otherNightMode =
+            if (currentNightMode == (Configuration.UI_MODE_NIGHT_NO shl 4))
+                Configuration.UI_MODE_NIGHT_YES shl 4
+            else
+                Configuration.UI_MODE_NIGHT_NO shl 4
+
+        val key = cacheKey(widgetId, otherNightMode, generation)
+
+        if (pngCache.containsKey(key)) {
+            return
         }
 
-        val otherNight = if (nightMode == (Configuration.UI_MODE_NIGHT_NO shl 4))
-            Configuration.UI_MODE_NIGHT_YES shl 4
-        else
-            Configuration.UI_MODE_NIGHT_NO shl 4
-        val otherKey = "${widgetId}_content_${otherNight}_g$generation"
-        if (!pngCache.containsKey(otherKey)) {
-            val otherCfg = Configuration(ctx.resources.configuration).apply {
-                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or otherNight
-            }
-            val otherCtx = ctx.createConfigurationContext(otherCfg)
-            val otherBmp = renderMerged(otherCtx, state.temp, state.iconRes, width, width)
-            val otherBytes = ByteArrayOutputStream().use { baos ->
-                otherBmp.compress(Bitmap.CompressFormat.PNG, 100, baos)
-                otherBmp.recycle()
-                baos.toByteArray()
-            }
-            pngCache.putIfAbsent(otherKey, otherBytes)
+        pngCache.putIfAbsent(
+            key,
+            renderPng(themedContext(context, otherNightMode), temp, iconRes, size)
+        )
+    }
+
+    private fun themedContext(context: Context, nightMode: Int): Context {
+        val config = Configuration(context.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
         }
 
-        val pipe = ParcelFileDescriptor.createPipe()
-        val readSide = pipe[0]
-        val writeSide = pipe[1]
-        Thread {
+        return context.createConfigurationContext(config)
+    }
+
+    private fun renderPng(
+        context: Context,
+        temp: Int,
+        iconRes: Int,
+        size: Int
+    ): ByteArray {
+        val bitmap = renderMerged(context, temp, iconRes, size, size)
+
+        return ByteArrayOutputStream().use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            bitmap.recycle()
+            stream.toByteArray()
+        }
+    }
+
+    private fun createPipe(
+        bytes: ByteArray,
+        threadName: String
+    ): ParcelFileDescriptor {
+        val (readSide, writeSide) = ParcelFileDescriptor.createPipe()
+
+        Thread({
             try {
-                ParcelFileDescriptor.AutoCloseOutputStream(writeSide).use { out ->
-                    out.write(bytes)
+                ParcelFileDescriptor.AutoCloseOutputStream(writeSide).use {
+                    it.write(bytes)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Pipe write failed", e)
             }
-        }.apply { name = "provider-serve-$cacheKey" }.start()
+        }, "provider-serve-$threadName").start()
+
         return readSide
     }
-
-    override fun getType(uri: Uri): String = "image/png"
-
-    override fun query(uri: Uri, projection: Array<String>?, selection: String?, selectionArgs: Array<String>?, sortOrder: String?): Cursor? = null
-    override fun insert(uri: Uri, values: ContentValues?): Uri? = null
-    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int = 0
-    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
 
     companion object {
         private const val AUTHORITY_SUFFIX = ".widgetimages"
@@ -98,62 +194,141 @@ class WidgetImageProvider : ContentProvider() {
         private val pngCache = ConcurrentHashMap<String, ByteArray>()
         private val generationMap = ConcurrentHashMap<Int, Int>()
 
+        private fun cacheKey(
+            widgetId: Int,
+            nightMode: Int,
+            generation: Int
+        ) = "${widgetId}_content_${nightMode}_g$generation"
+
         fun nextGeneration(widgetId: Int) {
             generationMap.merge(widgetId, 1) { old, _ -> old + 1 }
         }
 
         fun invalidateCache(widgetId: Int) {
-            pngCache.keys.removeAll { it.startsWith("${widgetId}_") }
+            pngCache.keys.removeAll {
+                it.startsWith("${widgetId}_")
+            }
+        }
+
+        fun precache(
+            context: Context,
+            widgetId: Int,
+            temp: Int,
+            iconRes: Int
+        ) {
+            val generation = generationMap[widgetId] ?: 0
+            val size = WidgetUtils.getSquareSizePx(context, widgetId)
+
+            listOf(
+                Configuration.UI_MODE_NIGHT_YES shl 4,
+                Configuration.UI_MODE_NIGHT_NO shl 4
+            ).forEach { nightMode ->
+
+                val key = cacheKey(widgetId, nightMode, generation)
+
+                if (pngCache.containsKey(key)) {
+                    return@forEach
+                }
+
+                val themedContext = Configuration(context.resources.configuration).let {
+                    it.uiMode =
+                        (it.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+                    context.createConfigurationContext(it)
+                }
+
+                pngCache[key] = renderPng(themedContext, temp, iconRes, size)
+            }
         }
 
         fun uri(packageName: String, widgetId: Int): Uri {
-            val gen = generationMap[widgetId] ?: 0
+            val generation = generationMap[widgetId] ?: 0
+
             return Uri.Builder()
                 .scheme("content")
                 .authority(packageName + AUTHORITY_SUFFIX)
                 .path("render/$widgetId/content")
-                .appendQueryParameter("g", gen.toString())
+                .appendQueryParameter("g", generation.toString())
                 .build()
+        }
+
+        private fun renderPng(
+            context: Context,
+            temp: Int,
+            iconRes: Int,
+            size: Int
+        ): ByteArray {
+            val bitmap = renderMerged(context, temp, iconRes, size, size)
+
+            return ByteArrayOutputStream().use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                bitmap.recycle()
+                stream.toByteArray()
+            }
         }
     }
 }
 
-private fun renderMerged(ctx: Context, temp: Int, iconRes: Int, width: Int, height: Int): Bitmap {
-    val minDim = minOf(width, height).toFloat()
-    val isLarge = temp >= 100 || temp <= -10
+internal fun renderMerged(
+    context: Context,
+    temp: Int,
+    iconRes: Int,
+    width: Int,
+    height: Int
+): Bitmap {
 
-    val tf = VariableFontProvider.get(ctx, wght = 500f, wdth = 100f, grad = 20f, rond = 100f)
+    val minDimension = minOf(width, height).toFloat()
+    val largeTemperature = temp >= 100 || temp <= -10
 
-    val wrapper = ContextThemeWrapper(ctx, com.google.android.material.R.style.Theme_Material3_DynamicColors_DayNight)
-    val ta = wrapper.obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.colorOnSurface))
-    val textColor = ta.getColor(0, 0xFF1C1B1F.toInt())
-    ta.recycle()
+    val typeface = VariableFontProvider.get(
+        context,
+        wght = 500f,
+        wdth = 100f,
+        grad = 20f,
+        rond = 100f
+    )
+
+    val themedContext = ContextThemeWrapper(
+        context,
+        com.google.android.material.R.style.Theme_Material3_DynamicColors_DayNight
+    )
+
+    val attributes = themedContext.obtainStyledAttributes(
+        intArrayOf(com.google.android.material.R.attr.colorOnSurface)
+    )
+
+    val textColor = attributes.getColor(0, 0xFF1C1B1F.toInt())
+    attributes.recycle()
 
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = textColor
-        this.typeface = tf
+        this.typeface = typeface
         textAlign = Paint.Align.CENTER
-        textSize = minDim * (if (isLarge) 0.3f else 0.33f)
+        textSize = minDimension * if (largeTemperature) 0.30f else 0.33f
     }
 
-    val w = width.toFloat()
-    val fm = paint.fontMetrics
-    val textX = if (isLarge) w * 0.54f else w * 0.57f
-    val textY = -fm.ascent * if (isLarge) 1.7f else 1.5f
+    val metrics = paint.fontMetrics
 
-    val iconSize = (minDim * 0.32f).toInt()
+    val textX = width * if (largeTemperature) 0.54f else 0.57f
+    val textY = -metrics.ascent * if (largeTemperature) 1.7f else 1.5f
+
+    val iconSize = (minDimension * 0.32f).toInt()
     val iconLeft = (width * 0.26f).toInt()
     val iconTop = (height * 0.55f).toInt()
 
-    val bitmap = createBitmap(width, height)
-    val canvas = Canvas(bitmap)
-    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-    canvas.drawText("$temp\u00B0", textX, textY, paint)
+    return createBitmap(width, height).also { bitmap ->
+        val canvas = Canvas(bitmap)
 
-    val iconDrawable = ctx.getDrawable(iconRes)
-    if (iconDrawable != null) {
-        iconDrawable.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
-        iconDrawable.draw(canvas)
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        canvas.drawText("$temp°", textX, textY, paint)
+
+        AppCompatResources.getDrawable(context, iconRes)?.apply {
+            setBounds(
+                iconLeft,
+                iconTop,
+                iconLeft + iconSize,
+                iconTop + iconSize
+            )
+            draw(canvas)
+        }
     }
-    return bitmap
 }

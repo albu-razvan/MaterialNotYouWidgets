@@ -3,6 +3,7 @@ package com.razvanalbu.material.not.you.widgets.weather
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.util.Log
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
@@ -46,8 +47,35 @@ class FramePumpService : BasePumpService() {
     override fun onAnimationComplete() {
         val views = RemoteViews(packageName, R.layout.weather_pill_layout)
         views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-        views.setImageViewUri(R.id.content_image,
-            WidgetImageProvider.uri(packageName, widgetId))
+
+        when (val state = WeatherPillWidget.lastWeatherState[widgetId]) {
+            is WeatherState.Success -> {
+                Log.d(TAG, "[$widgetId] content_image <- URI (animComplete)")
+                views.setImageViewUri(
+                    R.id.content_image,
+                    WidgetImageProvider.uri(packageName, widgetId)
+                )
+            }
+
+            is WeatherState.Error -> {
+                Log.d(
+                    TAG,
+                    "[$widgetId] content_image <- ${if (state.type == WeatherState.ErrorType.NETWORK) "ic_no_internet" else "ic_error"} (animComplete)"
+                )
+                views.setFloat(R.id.content_image, "setRotation", 0f)
+                views.setImageViewResource(
+                    R.id.content_image,
+                    if (state.type == WeatherState.ErrorType.NETWORK)
+                        R.drawable.ic_no_internet
+                    else
+                        R.drawable.ic_error
+                )
+            }
+
+            else -> {
+                Log.d(TAG, "[$widgetId] no cached state, leaving content_image as-is")
+            }
+        }
 
         val tapIntent = Intent(this, WeatherPillWidget::class.java).apply {
             action = WeatherPillWidget.ACTION_TAP_REFRESH
@@ -64,6 +92,7 @@ class FramePumpService : BasePumpService() {
 
     companion object {
         private const val CHANNEL_ID = "widget_morph_animation"
+        private const val TAG = "FramePumpService"
 
         @Volatile
         var onAnimationFrame: ((PumpPhase, Float) -> Unit)? = null
