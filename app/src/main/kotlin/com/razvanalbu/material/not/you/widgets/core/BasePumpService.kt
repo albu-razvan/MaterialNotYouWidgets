@@ -47,6 +47,8 @@ abstract class BasePumpService : Service() {
     protected var widgetId = -1
     protected var lastBitmap: Bitmap? = null
     protected val morphEngine = MorphingEngine()
+    private lateinit var widgetManager: AppWidgetManager
+    private var shapeColor = 0
 
     @Volatile
     protected var phase = PumpPhase.IDLE
@@ -67,6 +69,7 @@ abstract class BasePumpService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        widgetManager = AppWidgetManager.getInstance(this)
 
         createNotificationChannel()
     }
@@ -121,6 +124,7 @@ abstract class BasePumpService : Service() {
         phase = PumpPhase.MORPH_IN
         phaseStartTimeNs = 0L
         pendingDeactivate = false
+        shapeColor = resolveShapeColor()
     }
 
     private fun cleanup() {
@@ -147,7 +151,7 @@ abstract class BasePumpService : Service() {
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
                         size, size, startRadii, endRadii,
-                        morphT, resolveShapeColor(), rot
+                        morphT, shapeColor, rot
                     )
                 )
 
@@ -173,7 +177,7 @@ abstract class BasePumpService : Service() {
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
                         size, size, endRadii, endRadii,
-                        0f, resolveShapeColor(), currentRotation
+                        0f, shapeColor, currentRotation
                     )
                 )
             }
@@ -190,7 +194,7 @@ abstract class BasePumpService : Service() {
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
                         size, size, endRadii, startRadii,
-                        morphT, resolveShapeColor(), rot
+                        morphT, shapeColor, rot
                     )
                 )
 
@@ -232,8 +236,7 @@ abstract class BasePumpService : Service() {
 
         onPushFrameHook(views)
 
-        AppWidgetManager.getInstance(this)
-            .updateAppWidget(widgetId, views)
+        widgetManager.updateAppWidget(widgetId, views)
 
         lastBitmap?.recycle()
         lastBitmap = frame

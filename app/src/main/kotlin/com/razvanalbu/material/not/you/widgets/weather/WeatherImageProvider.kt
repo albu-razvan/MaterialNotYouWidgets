@@ -145,29 +145,6 @@ class WidgetImageProvider : ContentProvider() {
         )
     }
 
-    private fun themedContext(context: Context, nightMode: Int): Context {
-        val config = Configuration(context.resources.configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
-        }
-
-        return context.createConfigurationContext(config)
-    }
-
-    private fun renderPng(
-        context: Context,
-        temp: Int,
-        iconRes: Int,
-        size: Int
-    ): ByteArray {
-        val bitmap = renderMerged(context, temp, iconRes, size, size)
-
-        return ByteArrayOutputStream().use { stream ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-            bitmap.recycle()
-            stream.toByteArray()
-        }
-    }
-
     private fun createPipe(
         bytes: ByteArray,
         threadName: String
@@ -230,13 +207,12 @@ class WidgetImageProvider : ContentProvider() {
                     return@forEach
                 }
 
-                val themedContext = Configuration(context.resources.configuration).let {
-                    it.uiMode =
-                        (it.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
-                    context.createConfigurationContext(it)
-                }
-
-                pngCache[key] = renderPng(themedContext, temp, iconRes, size)
+                pngCache[key] = renderPng(
+                    themedContext(context, nightMode),
+                    temp,
+                    iconRes,
+                    size
+                )
             }
         }
 
@@ -264,6 +240,14 @@ class WidgetImageProvider : ContentProvider() {
                 bitmap.recycle()
                 stream.toByteArray()
             }
+        }
+
+        private fun themedContext(context: Context, nightMode: Int): Context {
+            val config = Configuration(context.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+            }
+
+            return context.createConfigurationContext(config)
         }
     }
 }

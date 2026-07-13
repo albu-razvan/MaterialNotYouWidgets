@@ -1,6 +1,5 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.util.Log
@@ -45,16 +44,13 @@ class FramePumpService : BasePumpService() {
     }
 
     override fun onAnimationComplete() {
-        val views = RemoteViews(packageName, R.layout.weather_pill_layout)
+        val views = WeatherWidgetViews.createBaseViews(this, widgetId)
         views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
 
         when (val state = WeatherPillWidget.lastWeatherState[widgetId]) {
             is WeatherState.Success -> {
                 Log.d(TAG, "[$widgetId] content_image <- URI (animComplete)")
-                views.setImageViewUri(
-                    R.id.content_image,
-                    WidgetImageProvider.uri(packageName, widgetId)
-                )
+                WeatherWidgetViews.showSuccessUri(this, views, widgetId)
             }
 
             is WeatherState.Error -> {
@@ -62,29 +58,13 @@ class FramePumpService : BasePumpService() {
                     TAG,
                     "[$widgetId] content_image <- ${if (state.type == WeatherState.ErrorType.NETWORK) "ic_no_internet" else "ic_error"} (animComplete)"
                 )
-                views.setImageViewResource(
-                    R.id.content_image,
-                    if (state.type == WeatherState.ErrorType.NETWORK)
-                        R.drawable.ic_no_internet
-                    else
-                        R.drawable.ic_error
-                )
+                WeatherWidgetViews.showError(views, state.type)
             }
 
             else -> {
                 Log.d(TAG, "[$widgetId] no cached state, leaving content_image as-is")
             }
         }
-
-        val tapIntent = Intent(this, WeatherPillWidget::class.java).apply {
-            action = WeatherPillWidget.ACTION_TAP_REFRESH
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-        }
-        val pi = PendingIntent.getBroadcast(
-            this, widgetId, tapIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        views.setOnClickPendingIntent(R.id.content_container, pi)
 
         AppWidgetManager.getInstance(this).updateAppWidget(widgetId, views)
     }
