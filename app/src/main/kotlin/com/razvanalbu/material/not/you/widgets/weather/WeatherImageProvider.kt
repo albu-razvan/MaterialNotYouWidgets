@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.database.Cursor
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -30,12 +31,12 @@ class WidgetImageProvider : ContentProvider() {
         val ctx = context ?: throw FileNotFoundException("Provider not initialized")
 
         val widgetId = extractWidgetId(uri)
-        val generation = uri.getQueryParameter("g")?.toIntOrNull() ?: 0
+        val generation = generationMap[widgetId] ?: 0
         val nightMode = currentNightMode(ctx)
 
         Log.d(TAG, "openFile widget=$widgetId generation=$generation")
 
-        val state = WeatherPillWidget.lastWeatherState[widgetId] as? WeatherState.Success
+        val state = WeatherWidgetStateManager.getOrRestoreWeatherState(ctx, widgetId) as? WeatherState.Success
             ?: throw FileNotFoundException("No weather data for widget $widgetId")
 
         val size = WidgetUtils.getSquareSizePx(ctx, widgetId)
@@ -114,7 +115,7 @@ class WidgetImageProvider : ContentProvider() {
         val key = cacheKey(widgetId, nightMode, generation)
 
         return pngCache.computeIfAbsent(key) {
-            renderPng(context, temp, iconRes, size)
+            renderPng(themedContext(context, nightMode), temp, iconRes, size)
         }
     }
 
@@ -187,6 +188,15 @@ class WidgetImageProvider : ContentProvider() {
             }
         }
 
+        @JvmStatic
+        fun getCachedBitmap(context: Context, widgetId: Int): Bitmap? {
+            val generation = generationMap[widgetId] ?: 0
+            val baseNightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            val key = cacheKey(widgetId, baseNightMode shl 4, generation)
+            val bytes = pngCache[key] ?: return null
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+
         fun precache(
             context: Context,
             widgetId: Int,
@@ -217,13 +227,10 @@ class WidgetImageProvider : ContentProvider() {
         }
 
         fun uri(packageName: String, widgetId: Int): Uri {
-            val generation = generationMap[widgetId] ?: 0
-
             return Uri.Builder()
                 .scheme("content")
                 .authority(packageName + AUTHORITY_SUFFIX)
                 .path("render/$widgetId/content")
-                .appendQueryParameter("g", generation.toString())
                 .build()
         }
 

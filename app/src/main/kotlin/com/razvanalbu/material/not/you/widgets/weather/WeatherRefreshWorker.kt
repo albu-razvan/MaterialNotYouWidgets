@@ -1,6 +1,5 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
-import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -12,8 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.razvanalbu.material.not.you.widgets.R
-import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
+import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
 import java.util.concurrent.TimeUnit
 
 class WeatherRefreshWorker(
@@ -31,63 +29,32 @@ class WeatherRefreshWorker(
         Log.d(TAG, "Worker started for widget $appWidgetId")
 
         val result = WeatherApi.fetchWeatherData(lat, lon)
-        WeatherPillWidget.lastWeatherState[appWidgetId] = result
+
+        val contentState = when (result) {
+            is WeatherState.Success -> ContentState.SUCCESS
+            is WeatherState.Error -> when (result.type) {
+                WeatherState.ErrorType.NETWORK -> ContentState.NO_INTERNET
+                WeatherState.ErrorType.UNKNOWN -> ContentState.ERROR
+            }
+        }
+
+        if (result is WeatherState.Success) {
+            WidgetImageProvider.nextGeneration(appWidgetId)
+            WidgetImageProvider.invalidateCache(appWidgetId)
+            WidgetImageProvider.precache(
+                applicationContext, appWidgetId,
+                result.temp, result.iconRes
+            )
+        }
 
         val mainHandler = Handler(Looper.getMainLooper())
         mainHandler.post {
             try {
-                val views = WeatherWidgetViews.createBaseViews(applicationContext, appWidgetId)
-                views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-
-                when (result) {
-                    is WeatherState.Success -> {
-                        val size = WidgetUtils.getSquareSizePx(
-                            applicationContext, appWidgetId
-                        )
-                        WidgetImageProvider.nextGeneration(appWidgetId)
-                        WidgetImageProvider.invalidateCache(appWidgetId)
-
-                        val bitmap = renderMerged(
-                            applicationContext, result.temp,
-                            result.iconRes, size, size
-                        )
-                        WidgetImageProvider.precache(
-                            applicationContext, appWidgetId,
-                            result.temp, result.iconRes
-                        )
-
-                        WeatherWidgetViews.showBitmap(views, bitmap)
-                        bitmap.recycle()
-
-                        Log.d(
-                            TAG,
-                            "[$appWidgetId] content_image <- bitmap (Worker success)"
-                        )
-                    }
-
-                    is WeatherState.Error -> {
-                        WeatherWidgetViews.showError(views, result.type)
-
-                        Log.d(
-                            TAG,
-                            "[$appWidgetId] content_image <- ${
-                                if (result.type == WeatherState.ErrorType.NETWORK)
-                                    "ic_no_internet" else "ic_error"
-                            } (Worker error)"
-                        )
-                    }
-                }
-
-                AppWidgetManager.getInstance(applicationContext)
-                    .updateAppWidget(appWidgetId, views)
-
-                WeatherWidgetViews.requestMorphOutIfAnimating(appWidgetId)
-            } catch (e: Exception) {
-                Log.e(
-                    TAG,
-                    "Failed to apply weather data for widget $appWidgetId",
-                    e
+                WeatherWidgetStateManager.applyState(
+                    applicationContext, appWidgetId, contentState, result
                 )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to apply weather data for widget $appWidgetId", e)
             }
         }
 

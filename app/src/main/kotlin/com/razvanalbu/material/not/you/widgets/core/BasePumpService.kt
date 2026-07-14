@@ -12,8 +12,9 @@ import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.animation.PathInterpolator
 import android.widget.RemoteViews
+import com.razvanalbu.material.not.you.widgets.R
+import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils.getSquareSizePx
-import kotlin.math.roundToInt
 
 enum class PumpPhase {
     IDLE,
@@ -49,28 +50,17 @@ abstract class BasePumpService : Service() {
     protected val morphEngine = MorphingEngine()
     private lateinit var widgetManager: AppWidgetManager
     private var shapeColor = 0
-
-    @Volatile
-    protected var phase = PumpPhase.IDLE
-        private set
-    private var phaseStartTimeNs = 0L
     private var currentRotation = 0f
     private var morphOutTargetRotation = -45f
     private var morphOutStartRotation = 0f
-    private var pendingDeactivate = false
 
     private val frameCallback = Choreographer.FrameCallback { frameTimeNanos ->
-        if (phaseStartTimeNs == 0L) {
-            phaseStartTimeNs = frameTimeNanos
-        }
-
         processFrame(frameTimeNanos)
     }
 
     override fun onCreate() {
         super.onCreate()
         widgetManager = AppWidgetManager.getInstance(this)
-
         createNotificationChannel()
     }
 
@@ -78,21 +68,17 @@ abstract class BasePumpService : Service() {
         setActiveInstance(this)
         when (intent?.action) {
             ACTION_MORPH_IN -> {
-                if (phase != PumpPhase.IDLE) {
+                widgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, -1)
+                if (WeatherWidgetStateManager.getAnimPhase(widgetId) != PumpPhase.IDLE) {
                     return START_NOT_STICKY
                 }
 
-                widgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, -1)
                 squarePx = getSquareSizePx(this, widgetId)
-
                 reset()
 
                 val notification = createNotification()
                 startForeground(notificationId, notification)
                 Choreographer.getInstance().postFrameCallback(frameCallback)
-            }
-            ACTION_MORPH_OUT -> {
-                triggerMorphOut()
             }
         }
 
@@ -104,7 +90,6 @@ abstract class BasePumpService : Service() {
     override fun onDestroy() {
         cleanup()
         setActiveInstance(null)
-
         super.onDestroy()
     }
 
@@ -121,9 +106,7 @@ abstract class BasePumpService : Service() {
     protected open fun getNotificationText(): String = "Loading..."
 
     private fun reset() {
-        phase = PumpPhase.MORPH_IN
-        phaseStartTimeNs = 0L
-        pendingDeactivate = false
+        WeatherWidgetStateManager.startAnimation(widgetId)
         shapeColor = resolveShapeColor()
     }
 
@@ -134,7 +117,29 @@ abstract class BasePumpService : Service() {
     }
 
     private fun processFrame(frameTimeNanos: Long) {
+        val event = WeatherWidgetStateManager.tickAnimation(
+            widgetId, frameTimeNanos, currentRotation, spinDegrees
+        )
+        when (event) {
+            is WeatherWidgetStateManager.TickResult.ToMorphOut -> {
+                onBeforeMorphOut()
+                morphOutStartRotation = event.startRotation
+                morphOutTargetRotation = event.targetRotation
+            }
+            is WeatherWidgetStateManager.TickResult.Completed -> {
+                onAnimationComplete()
+                cleanup()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return
+            }
+            else -> {}
+        }
+
         val size = squarePx
+        val phase = WeatherWidgetStateManager.getAnimPhase(widgetId)
+        val phaseStartTimeNs = WeatherWidgetStateManager.getAnimPhaseStartTime(widgetId)
+
         when (phase) {
             PumpPhase.IDLE -> return
 
@@ -142,7 +147,6 @@ abstract class BasePumpService : Service() {
                 val time = ((frameTimeNanos - phaseStartTimeNs).toFloat() / morphDurationNs)
                     .coerceAtMost(1f)
                 val morphT = morphInterpolator.getInterpolation(time)
-
                 val rot = -45f + spinDegrees * spinInInterpolator.getInterpolation(time)
                 currentRotation = rot
 
@@ -154,26 +158,15 @@ abstract class BasePumpService : Service() {
                         morphT, shapeColor, rot
                     )
                 )
-
-                if (time >= 1f) {
-                    if (pendingDeactivate) {
-                        pendingDeactivate = false
-                        val approxTarget = currentRotation + spinDegrees
-                        val m = ((approxTarget + 45f) / 360f).roundToInt()
-                        morphOutStartRotation = currentRotation
-                        morphOutTargetRotation = -45f + 360f * m
-                        phase = PumpPhase.MORPH_OUT
-                    } else {
-                        phase = PumpPhase.ROTATE
-                    }
-                    phaseStartTimeNs = frameTimeNanos
-                }
             }
 
             PumpPhase.ROTATE -> {
                 val elapsed = frameTimeNanos - phaseStartTimeNs
                 currentRotation =
                     -45f + spinDegrees + elapsed.toFloat() / 1_000_000_000f * rotationSpeed
+
+                onFrame(PumpPhase.ROTATE, 0f)
+
                 pushFrame(
                     morphEngine.renderRadiiToBitmap(
                         size, size, endRadii, endRadii,
@@ -197,37 +190,10 @@ abstract class BasePumpService : Service() {
                         morphT, shapeColor, rot
                     )
                 )
-
-                if (t >= 1f) {
-                    phase = PumpPhase.IDLE
-                    onAnimationComplete()
-                    cleanup()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
-
-                    return
-                }
             }
         }
 
         Choreographer.getInstance().postFrameCallback(frameCallback)
-    }
-
-    internal fun triggerMorphOut() {
-        when (phase) {
-            PumpPhase.MORPH_IN -> {
-                pendingDeactivate = true
-            }
-            PumpPhase.ROTATE -> {
-                val approxTarget = currentRotation + spinDegrees
-                val m = ((approxTarget + 45f) / 360f).roundToInt()
-                morphOutStartRotation = currentRotation
-                morphOutTargetRotation = -45f + 360f * m
-                phase = PumpPhase.MORPH_OUT
-                phaseStartTimeNs = System.nanoTime()
-            }
-            else -> { }
-        }
     }
 
     protected fun pushFrame(frame: Bitmap) {
@@ -245,6 +211,8 @@ abstract class BasePumpService : Service() {
     protected open fun onPushFrameHook(views: RemoteViews) {}
 
     protected open fun onFrame(phase: PumpPhase, fraction: Float) {}
+
+    protected open fun onBeforeMorphOut() {}
 
     protected open fun onAnimationComplete() {}
 
@@ -281,7 +249,10 @@ abstract class BasePumpService : Service() {
         private var activeInstance: BasePumpService? = null
 
         val currentPhase: PumpPhase
-            get() = activeInstance?.phase ?: PumpPhase.IDLE
+            get() {
+                val instance = activeInstance ?: return PumpPhase.IDLE
+                return WeatherWidgetStateManager.getAnimPhase(instance.widgetId)
+            }
 
         fun setActiveInstance(service: BasePumpService?) {
             activeInstance = service
@@ -289,17 +260,20 @@ abstract class BasePumpService : Service() {
 
         fun updateWidgetSize(appWidgetId: Int, squarePx: Int) {
             val instance = activeInstance ?: return
-
-            if (instance.widgetId != appWidgetId){
-                return
-            }
-
+            if (instance.widgetId != appWidgetId) return
             instance.squarePx = squarePx
         }
 
         @JvmStatic
-        fun requestMorphOut() {
-            activeInstance?.triggerMorphOut()
+        fun getMorphShapeRes(widgetId: Int): Int {
+            val instance = activeInstance ?: return R.drawable.pill_shape
+            if (instance.widgetId != widgetId) return R.drawable.pill_shape
+            val phase = WeatherWidgetStateManager.getAnimPhase(widgetId)
+            return if (phase == null || phase == PumpPhase.IDLE) {
+                R.drawable.pill_shape
+            } else {
+                R.drawable.pill_shape
+            }
         }
     }
 }

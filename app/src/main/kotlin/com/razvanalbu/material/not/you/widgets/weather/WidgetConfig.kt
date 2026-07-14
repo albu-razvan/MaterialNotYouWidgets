@@ -2,6 +2,7 @@ package com.razvanalbu.material.not.you.widgets.weather
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 internal object WidgetConfig {
     private const val PREFS_NAME = "weather_widget_config"
@@ -20,18 +21,18 @@ internal object WidgetConfig {
     )
 
     fun save(context: Context, widgetId: Int, config: LocationConfig) {
-        prefs(context).edit()
-            .putFloat(KEY_LAT + widgetId, config.lat.toFloat())
-            .putFloat(KEY_LON + widgetId, config.lon.toFloat())
-            .putString(KEY_LOCATION + widgetId, config.displayName)
-            .apply()
+        prefs(context).edit {
+            putFloat(KEY_LAT + widgetId, config.lat.toFloat())
+                .putFloat(KEY_LON + widgetId, config.lon.toFloat())
+                .putString(KEY_LOCATION + widgetId, config.displayName)
+        }
     }
 
     fun load(context: Context, widgetId: Int): LocationConfig? {
-        val p = prefs(context)
-        val lat = p.getFloat(KEY_LAT + widgetId, Float.NaN)
-        val lon = p.getFloat(KEY_LON + widgetId, Float.NaN)
-        val name = p.getString(KEY_LOCATION + widgetId, null) ?: return null
+        val prefs = prefs(context)
+        val lat = prefs.getFloat(KEY_LAT + widgetId, Float.NaN)
+        val lon = prefs.getFloat(KEY_LON + widgetId, Float.NaN)
+        val name = prefs.getString(KEY_LOCATION + widgetId, null) ?: return null
         if (lat.isNaN() || lon.isNaN()) return null
         return LocationConfig(lat.toDouble(), lon.toDouble(), name)
     }

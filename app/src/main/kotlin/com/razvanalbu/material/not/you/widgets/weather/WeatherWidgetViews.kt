@@ -4,64 +4,63 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.view.View
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
-import com.razvanalbu.material.not.you.widgets.core.PumpPhase
+import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
 
 internal object WeatherWidgetViews {
 
-    fun createBaseViews(context: Context, appWidgetId: Int): RemoteViews {
+    fun applyContentState(views: RemoteViews, context: Context, appWidgetId: Int, state: ContentState) {
+        views.setViewVisibility(R.id.content_image, View.VISIBLE)
+        when (state) {
+            ContentState.REQUIRES_CONFIG -> {
+                views.setImageViewResource(R.id.content_image, R.drawable.ic_gear)
+            }
+            ContentState.UPDATING -> {
+                views.setImageViewResource(R.id.content_image, R.drawable.ic_sync)
+            }
+            ContentState.NO_INTERNET -> {
+                views.setImageViewResource(R.id.content_image, R.drawable.ic_no_internet)
+            }
+            ContentState.ERROR -> {
+                views.setImageViewResource(R.id.content_image, R.drawable.ic_error)
+            }
+            ContentState.SUCCESS -> {
+                views.setImageViewUri(
+                    R.id.content_image,
+                    WidgetImageProvider.uri(context.packageName, appWidgetId)
+                )
+            }
+        }
+    }
+
+    fun applyContentStateBitmap(views: RemoteViews, context: Context, appWidgetId: Int, state: ContentState) {
+        when (state) {
+            ContentState.SUCCESS -> {
+                val bitmap = WidgetImageProvider.getCachedBitmap(context, appWidgetId)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.content_image, bitmap)
+                } else {
+                    applyContentState(views, context, appWidgetId, state)
+                }
+            }
+            else -> applyContentState(views, context, appWidgetId, state)
+        }
+    }
+
+    fun createResetViews(context: Context, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.weather_pill_layout)
         setTapRefreshIntent(context, views, appWidgetId)
+        views.setImageViewResource(R.id.morph_image, BasePumpService.getMorphShapeRes(appWidgetId))
         return views
     }
 
-    fun showSync(views: RemoteViews) {
-        views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-        views.setViewVisibility(R.id.content_image, View.VISIBLE)
-        views.setImageViewResource(R.id.content_image, R.drawable.ic_sync)
-    }
-
-    fun showUnconfigured(views: RemoteViews) {
-        views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-        views.setViewVisibility(R.id.content_image, View.VISIBLE)
-        views.setImageViewResource(R.id.content_image, R.drawable.ic_gear)
-    }
-
-    fun showSuccessUri(context: Context, views: RemoteViews, appWidgetId: Int) {
-        views.setViewVisibility(R.id.content_image, View.VISIBLE)
-        views.setImageViewUri(
-            R.id.content_image,
-            WidgetImageProvider.uri(context.packageName, appWidgetId)
-        )
-    }
-
-    fun showError(views: RemoteViews, type: WeatherState.ErrorType) {
-        views.setViewVisibility(R.id.content_image, View.VISIBLE)
-        views.setImageViewResource(R.id.content_image, errorIcon(type))
-    }
-
-    fun showBitmap(views: RemoteViews, bitmap: Bitmap) {
-        views.setViewVisibility(R.id.content_image, View.VISIBLE)
-        views.setImageViewBitmap(R.id.content_image, bitmap)
-    }
-
-    fun requestMorphOutIfAnimating(appWidgetId: Int) {
-        if (FramePumpService.currentPhase != PumpPhase.IDLE) {
-            WeatherPillWidget.pendingMorphOut.add(appWidgetId)
-            BasePumpService.requestMorphOut()
-        }
-    }
-
-    fun errorIcon(type: WeatherState.ErrorType): Int {
-        return if (type == WeatherState.ErrorType.NETWORK) {
-            R.drawable.ic_no_internet
-        } else {
-            R.drawable.ic_error
-        }
+    fun createViews(context: Context, appWidgetId: Int, state: ContentState): RemoteViews {
+        val views = createResetViews(context, appWidgetId)
+        applyContentState(views, context, appWidgetId, state)
+        return views
     }
 
     private fun setTapRefreshIntent(context: Context, views: RemoteViews, appWidgetId: Int) {

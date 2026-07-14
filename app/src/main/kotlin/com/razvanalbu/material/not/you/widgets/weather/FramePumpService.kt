@@ -1,6 +1,5 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
-import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.util.Log
 import android.widget.RemoteViews
@@ -8,8 +7,11 @@ import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
 import com.razvanalbu.material.not.you.widgets.core.ShapeType
+import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
 
 class FramePumpService : BasePumpService() {
+
+    private var lastContentState: ContentState? = null
 
     override val contentContainerId: Int = R.id.content_container
     override val layoutResId: Int = R.layout.weather_pill_layout
@@ -26,13 +28,7 @@ class FramePumpService : BasePumpService() {
     override fun getNotificationText(): String = "Loading weather..."
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val result = super.onStartCommand(intent, flags, startId)
-
-        if (WeatherPillWidget.pendingMorphOut.remove(widgetId)) {
-            triggerMorphOut()
-        }
-
-        return result
+        return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onFrame(phase: PumpPhase, fraction: Float) {
@@ -40,33 +36,25 @@ class FramePumpService : BasePumpService() {
     }
 
     override fun onPushFrameHook(views: RemoteViews) {
+        val state = WeatherWidgetStateManager.getContentState(widgetId) ?: ContentState.SUCCESS
+        if (state != lastContentState) {
+            lastContentState = state
+            val phase = WeatherWidgetStateManager.getAnimPhase(widgetId)
+            if (phase == PumpPhase.MORPH_OUT) {
+                WeatherWidgetViews.applyContentStateBitmap(views, this, widgetId, state)
+            } else {
+                WeatherWidgetViews.applyContentState(views, this, widgetId, state)
+            }
+        }
         onPushFrameView?.invoke(views)
     }
 
+    override fun onBeforeMorphOut() {
+        WeatherWidgetStateManager.flushContentDuringMorphOut(this, widgetId)
+    }
+
     override fun onAnimationComplete() {
-        val views = WeatherWidgetViews.createBaseViews(this, widgetId)
-        views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
-
-        when (val state = WeatherPillWidget.lastWeatherState[widgetId]) {
-            is WeatherState.Success -> {
-                Log.d(TAG, "[$widgetId] content_image <- URI (animComplete)")
-                WeatherWidgetViews.showSuccessUri(this, views, widgetId)
-            }
-
-            is WeatherState.Error -> {
-                Log.d(
-                    TAG,
-                    "[$widgetId] content_image <- ${if (state.type == WeatherState.ErrorType.NETWORK) "ic_no_internet" else "ic_error"} (animComplete)"
-                )
-                WeatherWidgetViews.showError(views, state.type)
-            }
-
-            else -> {
-                Log.d(TAG, "[$widgetId] no cached state, leaving content_image as-is")
-            }
-        }
-
-        AppWidgetManager.getInstance(this).updateAppWidget(widgetId, views)
+        WeatherWidgetStateManager.reapplyState(this, widgetId)
     }
 
     companion object {

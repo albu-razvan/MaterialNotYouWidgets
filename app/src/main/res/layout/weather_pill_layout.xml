@@ -9,12 +9,14 @@
         android:id="@+id/morph_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitCenter" />
+        android:scaleType="fitCenter"
+        android:src="@drawable/pill_shape" />
 
     <ImageView
         android:id="@+id/content_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitCenter" />
+        android:scaleType="fitCenter"
+        android:src="@android:color/transparent" />
 
 </FrameLayout>
