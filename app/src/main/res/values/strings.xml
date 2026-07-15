@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Material Not You Widgets</string>
     <string name="widget_name">Weather (Pill)</string>
-    <string name="widget_description">Weather widget with Material You Pill shape</string>
     <string name="no_results">No results found. Try a different search.</string>
     <string name="location">Location</string>
     <string name="clear_search">Clear search</string>

@@ -1,7 +1,6 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
 import android.content.Intent
-import android.util.Log
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
@@ -14,7 +13,7 @@ class FramePumpService : BasePumpService() {
     private var lastContentState: ContentState? = null
 
     override val contentContainerId: Int = R.id.content_container
-    override val layoutResId: Int = R.layout.weather_pill_layout
+    override val layoutResId: Int = R.layout.weather_pill
     override val morphImageViewId: Int = R.id.morph_image
 
     override val notificationDescription: String = "Shows morph animation when widget is tapped"

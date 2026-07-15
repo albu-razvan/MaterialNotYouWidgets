@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:drawable="@drawable/pill_shape" />
+
+    <item
+        android:drawable="@drawable/weather_pill_temperature_preview"
+        android:left="70dp"
+        android:top="47.6dp"
+        android:width="91dp"
+        android:height="49dp" />
+
+    <item
+        android:drawable="@drawable/partly_cloudy"
+        android:left="52dp"
+        android:top="110dp"
+        android:width="64dp"
+        android:height="64dp" />
+
+</layer-list>
