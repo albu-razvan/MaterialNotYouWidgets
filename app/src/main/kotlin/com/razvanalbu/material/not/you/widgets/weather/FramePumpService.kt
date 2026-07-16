@@ -73,5 +73,9 @@ class FramePumpService : BasePumpService() {
         @JvmStatic
         val EXTRA_APPWIDGET_ID: String
             get() = BasePumpService.EXTRA_APPWIDGET_ID
+
+        fun resetContentState() {
+            (getActiveInstance() as? FramePumpService)?.lastContentState = null
+        }
     }
 }

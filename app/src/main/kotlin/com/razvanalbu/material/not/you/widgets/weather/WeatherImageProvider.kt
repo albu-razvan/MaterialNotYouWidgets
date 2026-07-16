@@ -129,10 +129,10 @@ class WidgetImageProvider : ContentProvider() {
         currentNightMode: Int
     ) {
         val otherNightMode =
-            if (currentNightMode == (Configuration.UI_MODE_NIGHT_NO shl 4))
-                Configuration.UI_MODE_NIGHT_YES shl 4
+            if (currentNightMode == Configuration.UI_MODE_NIGHT_NO)
+                Configuration.UI_MODE_NIGHT_YES
             else
-                Configuration.UI_MODE_NIGHT_NO shl 4
+                Configuration.UI_MODE_NIGHT_NO
 
         val key = cacheKey(widgetId, otherNightMode, generation)
 
@@ -192,7 +192,7 @@ class WidgetImageProvider : ContentProvider() {
         fun getCachedBitmap(context: Context, widgetId: Int): Bitmap? {
             val generation = generationMap[widgetId] ?: 0
             val baseNightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            val key = cacheKey(widgetId, baseNightMode shl 4, generation)
+            val key = cacheKey(widgetId, baseNightMode, generation)
             val bytes = pngCache[key] ?: return null
             return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         }
@@ -207,8 +207,8 @@ class WidgetImageProvider : ContentProvider() {
             val size = WidgetUtils.getSquareSizePx(context, widgetId)
 
             listOf(
-                Configuration.UI_MODE_NIGHT_YES shl 4,
-                Configuration.UI_MODE_NIGHT_NO shl 4
+                Configuration.UI_MODE_NIGHT_YES,
+                Configuration.UI_MODE_NIGHT_NO
             ).forEach { nightMode ->
 
                 val key = cacheKey(widgetId, nightMode, generation)
@@ -227,10 +227,12 @@ class WidgetImageProvider : ContentProvider() {
         }
 
         fun uri(packageName: String, widgetId: Int): Uri {
+            val generation = generationMap[widgetId] ?: 0
             return Uri.Builder()
                 .scheme("content")
                 .authority(packageName + AUTHORITY_SUFFIX)
                 .path("render/$widgetId/content")
+                .appendQueryParameter("g", generation.toString())
                 .build()
         }
 

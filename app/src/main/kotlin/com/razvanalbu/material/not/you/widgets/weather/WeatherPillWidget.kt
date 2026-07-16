@@ -54,6 +54,9 @@ class WeatherPillWidget : AppWidgetProvider() {
             WidgetUtils.getSquareSizePx(context, appWidgetId)
         )
 
+        WidgetImageProvider.nextGeneration(appWidgetId)
+        WidgetImageProvider.invalidateCache(appWidgetId)
+
         if (FramePumpService.currentPhase == PumpPhase.IDLE) {
             val config = WidgetConfig.load(context, appWidgetId)
             if (config == null) {
@@ -65,6 +68,11 @@ class WeatherPillWidget : AppWidgetProvider() {
 
             val cached = WeatherWidgetStateManager.weatherState(appWidgetId)
             if (cached != null) {
+                if (cached is WeatherState.Success) {
+                    WidgetImageProvider.precache(
+                        context, appWidgetId, cached.temp, cached.iconRes
+                    )
+                }
                 val contentState = when (cached) {
                     is WeatherState.Success -> ContentState.SUCCESS
                     is WeatherState.Error -> when (cached.type) {
@@ -76,6 +84,8 @@ class WeatherPillWidget : AppWidgetProvider() {
                     context, appWidgetId, contentState, cached
                 )
             }
+        } else {
+            FramePumpService.resetContentState()
         }
     }
 

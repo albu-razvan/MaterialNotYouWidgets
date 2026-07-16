@@ -108,21 +108,29 @@ MORPH_IN → ROTATE → MORPH_OUT → Completed
 ### URI Format
 
 ```
-content://<packageName>.widgetimages/render/<widgetId>/content
+content://<packageName>.widgetimages/render/<widgetId>/content?g=<generation>
 ```
 
-Stable URI — no `g` (generation) query parameter. The generation is
-stored in `generationMap[widgetId]` and read at `openFile` call time.
+The `g` parameter carries the current generation. When the generation
+bumps (on resize or refresh), the URI string changes, forcing the
+widget host to re-resolve it via `openFile` with fresh content at
+the correct size. The provider extracts the widget ID from the path
+and ignores the query parameter — it reads the generation from
+`generationMap[widgetId]` at `openFile` call time, which always
+matches `g`.
+
+**Important:** This is NOT called on animation frames. The URI is
+only sent in steady-state updates (`applyNow`, `reapplyState`).
+A single URI change per resize/refresh is safe.
 
 ### Cache Key Format
 
 ```
-${widgetId}_content_${nightMode shl 4}_g${generation}
+${widgetId}_content_${nightMode}_g${generation}
 ```
 
 - `nightMode`: `Configuration.UI_MODE_NIGHT_YES` (32) or
-  `Configuration.UI_MODE_NIGHT_NO` (16), shifted left by 4 to match
-  what `precache()` stores.
+  `Configuration.UI_MODE_NIGHT_NO` (16).
 - `generation`: incremented by `nextGeneration()` before each `precache()`.
 
 ### Cache Lifecycle

@@ -258,6 +258,9 @@ abstract class BasePumpService : Service() {
             activeInstance = service
         }
 
+        @JvmStatic
+        fun getActiveInstance(): BasePumpService? = activeInstance
+
         fun updateWidgetSize(appWidgetId: Int, squarePx: Int) {
             val instance = activeInstance ?: return
             if (instance.widgetId != appWidgetId) return
