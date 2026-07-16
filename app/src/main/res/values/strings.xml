@@ -12,4 +12,6 @@
     <string name="search_short_list_gag_5">Not many showed up. Awkward.</string>
     <string name="search_short_list_gag_6">A cozy little collection.</string>
     <string name="nominatim_attribution">Search results © <a href="https://nominatim.openstreetmap.org">OpenStreetMap contributors</a></string>
+    <string name="provider_metno">MET Norway</string>
+    <string name="provider_openmeteo">Open-Meteo</string>
 </resources>

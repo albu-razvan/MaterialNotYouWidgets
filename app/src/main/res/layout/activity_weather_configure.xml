@@ -126,6 +126,35 @@
 
     </FrameLayout>
 
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/provider_toggle_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="36dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        app:singleSelection="true"
+        app:selectionRequired="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/provider_metno"
+            style="@style/Widget.Material3Expressive.Button.TonalButton"
+            android:layout_width="0px"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/provider_metno" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/provider_openmeteo"
+            style="@style/Widget.Material3Expressive.Button.TonalButton"
+            android:layout_width="0px"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/provider_openmeteo" />
+
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/search_bar_card"
         android:layout_width="match_parent"

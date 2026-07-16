@@ -1,4 +1,4 @@
-package com.razvanalbu.material.not.you.widgets.weather
+package com.razvanalbu.material.not.you.widgets.weather.providers
 
 import android.content.ContentProvider
 import android.content.ContentValues
@@ -17,8 +17,11 @@ import android.util.Log
 import android.view.ContextThemeWrapper
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.createBitmap
+import com.google.android.material.R
 import com.razvanalbu.material.not.you.widgets.core.VariableFontProvider
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
+import com.razvanalbu.material.not.you.widgets.weather.WeatherState
+import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager
 import java.io.ByteArrayOutputStream
 import java.io.FileNotFoundException
 import java.util.concurrent.ConcurrentHashMap
@@ -282,11 +285,11 @@ internal fun renderMerged(
 
     val themedContext = ContextThemeWrapper(
         context,
-        com.google.android.material.R.style.Theme_Material3_DynamicColors_DayNight
+        R.style.Theme_Material3Expressive_DynamicColors_DayNight
     )
 
     val attributes = themedContext.obtainStyledAttributes(
-        intArrayOf(com.google.android.material.R.attr.colorOnSurface)
+        intArrayOf(R.attr.colorOnSurface)
     )
 
     val textColor = attributes.getColor(0, 0xFF1C1B1F.toInt())

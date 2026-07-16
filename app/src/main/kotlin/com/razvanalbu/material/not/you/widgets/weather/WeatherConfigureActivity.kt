@@ -18,6 +18,7 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButtonToggleGroup
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
@@ -25,6 +26,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.razvanalbu.material.not.you.widgets.R
+import com.razvanalbu.material.not.you.widgets.weather.providers.NominatimApi
 import kotlin.math.max
 import kotlin.random.Random
 
@@ -56,6 +58,7 @@ class WeatherConfigureActivity : AppCompatActivity() {
 
         setupWindowInsets()
         setupSearch()
+        setupProviderSelector()
 
         findViewById<EditText>(R.id.search_input).clearFocus()
     }
@@ -175,12 +178,14 @@ class WeatherConfigureActivity : AppCompatActivity() {
                         val layout = tv.layout ?: return@post
                         val textHeight = layout.getLineBottom(tv.lineCount - 1)
                         val availHeight = tv.height - tv.paddingTop - tv.paddingBottom
-                        tv.visibility = if (textHeight > availHeight) View.INVISIBLE else View.VISIBLE
+                        tv.visibility =
+                            if (textHeight > availHeight) View.INVISIBLE else View.VISIBLE
                     }
                 }
             }
 
-        findViewById<TextView>(R.id.nominatim_attribution).movementMethod = LinkMovementMethod.getInstance()
+        findViewById<TextView>(R.id.nominatim_attribution).movementMethod =
+            LinkMovementMethod.getInstance()
     }
 
     private fun showEmptyState() {
@@ -253,7 +258,7 @@ class WeatherConfigureActivity : AppCompatActivity() {
 
                         title.text = item?.name?.takeUnless { it.isBlank() }
                             ?: item?.displayName?.split(",")?.firstOrNull()?.trim()
-                            ?: ""
+                                    ?: ""
 
                         subtitle.text = buildString {
                             val hierarchy = listOfNotNull(
@@ -283,13 +288,58 @@ class WeatherConfigureActivity : AppCompatActivity() {
         }.apply { name = "nominatim-search" }.start()
     }
 
+    private fun setupProviderSelector() {
+        val toggleGroup = findViewById<MaterialButtonToggleGroup>(R.id.provider_toggle_group)
+        val currentConfig = WidgetConfig.load(this, appWidgetId)
+        if (currentConfig != null) {
+            toggleGroup.check(
+                if (currentConfig.provider == PROVIDER_OPEN_METEO)
+                    R.id.provider_openmeteo
+                else
+                    R.id.provider_metno
+            )
+        }
+
+        toggleGroup.addOnButtonCheckedListener { group, checkedId, isChecked ->
+            if (!isChecked) {
+                return@addOnButtonCheckedListener
+            }
+
+            val provider = if (checkedId == R.id.provider_openmeteo)
+                PROVIDER_OPEN_METEO
+            else
+                PROVIDER_MET_NO
+
+            val config = WidgetConfig.load(this@WeatherConfigureActivity, appWidgetId)
+            if (config != null) {
+                val updatedConfig = config.copy(provider = provider)
+                WidgetConfig.save(this@WeatherConfigureActivity, appWidgetId, updatedConfig)
+
+                val refreshIntent =
+                    Intent(this@WeatherConfigureActivity, WeatherPillWidget::class.java).apply {
+                        action = WeatherPillWidget.ACTION_SILENT_REFRESH
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                    }
+
+                sendBroadcast(refreshIntent)
+            }
+        }
+    }
+
     private fun onLocationSelected(result: NominatimApi.GeocodingResult) {
+        val toggleGroup = findViewById<MaterialButtonToggleGroup>(R.id.provider_toggle_group)
+        val provider = if (toggleGroup.checkedButtonId == R.id.provider_openmeteo)
+            PROVIDER_OPEN_METEO
+        else
+            PROVIDER_MET_NO
+
         WidgetConfig.save(
             this, appWidgetId,
             WidgetConfig.LocationConfig(
                 lat = result.lat,
                 lon = result.lon,
-                displayName = result.displayName
+                displayName = result.displayName,
+                provider = provider,
             )
         )
 

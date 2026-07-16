@@ -9,6 +9,7 @@ import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
+import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 
 internal object WeatherWidgetViews {
 

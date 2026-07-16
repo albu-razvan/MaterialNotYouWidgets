@@ -217,7 +217,7 @@ abstract class BasePumpService : Service() {
     protected open fun onAnimationComplete() {}
 
     protected fun resolveShapeColor(): Int {
-        val wrapper = ContextThemeWrapper(this, com.google.android.material.R.style.Theme_Material3_DynamicColors_DayNight)
+        val wrapper = ContextThemeWrapper(this, com.google.android.material.R.style.Theme_Material3Expressive_DynamicColors_DayNight)
         val ta = wrapper.obtainStyledAttributes(intArrayOf(
             com.google.android.material.R.attr.colorSurfaceContainer,
         ))

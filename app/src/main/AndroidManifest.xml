@@ -33,7 +33,7 @@
         </receiver>
 
         <provider
-            android:name=".weather.WidgetImageProvider"
+            android:name=".weather.providers.WidgetImageProvider"
             android:authorities="${applicationId}.widgetimages"
             android:exported="true"
             android:grantUriPermissions="true" />
@@ -52,7 +52,7 @@
             android:autoRemoveFromRecents="true"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar" />
+            android:theme="@style/Theme.Material3Expressive.DynamicColors.DayNight.NoActionBar" />
 
         <service
             android:name=".weather.FramePumpService"

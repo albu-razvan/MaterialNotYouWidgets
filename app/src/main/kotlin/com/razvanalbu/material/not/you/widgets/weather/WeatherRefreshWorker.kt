@@ -12,6 +12,8 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
+import com.razvanalbu.material.not.you.widgets.weather.providers.WeatherProviders
+import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 import java.util.concurrent.TimeUnit
 
 class WeatherRefreshWorker(
@@ -28,7 +30,9 @@ class WeatherRefreshWorker(
 
         Log.d(TAG, "Worker started for widget $appWidgetId")
 
-        val result = WeatherApi.fetchWeatherData(lat, lon)
+        val config = WidgetConfig.load(applicationContext, appWidgetId)
+        val provider = WeatherProviders.get(config?.provider ?: PROVIDER_MET_NO)
+        val result = provider.fetchWeatherData(config?.lat ?: lat, config?.lon ?: lon)
 
         val contentState = when (result) {
             is WeatherState.Success -> ContentState.SUCCESS

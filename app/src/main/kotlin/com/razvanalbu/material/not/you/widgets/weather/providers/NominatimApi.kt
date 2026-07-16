@@ -1,4 +1,4 @@
-package com.razvanalbu.material.not.you.widgets.weather
+package com.razvanalbu.material.not.you.widgets.weather.providers
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -9,7 +9,6 @@ import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
 import kotlin.math.pow
-import kotlin.math.round
 
 internal object NominatimApi {
 
@@ -279,6 +278,6 @@ internal object NominatimApi {
         decimals: Int
     ): Double {
         val factor = 10.0.pow(decimals)
-        return round(this * factor) / factor
+        return kotlin.math.round(this * factor) / factor
     }
 }

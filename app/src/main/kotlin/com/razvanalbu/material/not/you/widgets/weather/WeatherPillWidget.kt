@@ -15,6 +15,8 @@ import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
+import com.razvanalbu.material.not.you.widgets.weather.providers.WeatherProviders
+import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 
 class WeatherPillWidget : AppWidgetProvider() {
 
@@ -227,7 +229,8 @@ class WeatherPillWidget : AppWidgetProvider() {
                     return@Thread
                 }
 
-                val result = WeatherApi.fetchWeatherData(config.lat, config.lon)
+                val provider = WeatherProviders.get(config.provider)
+                val result = provider.fetchWeatherData(config.lat, config.lon)
 
                 val contentState = when (result) {
                     is WeatherState.Success -> ContentState.SUCCESS
