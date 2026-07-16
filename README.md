@@ -1,5 +1,7 @@
 # Material Not You Widgets
 
+[![Latest release](https://img.shields.io/github/v/release/albu-razvan/MaterialNotYouWidgets)](https://github.com/albu-razvan/MaterialNotYouWidgets/releases/latest)
+
 Yes, it says Material **NOT** You. No, these are not _your_ widgets. They're **MINE** 😈.
 
 ## Features
