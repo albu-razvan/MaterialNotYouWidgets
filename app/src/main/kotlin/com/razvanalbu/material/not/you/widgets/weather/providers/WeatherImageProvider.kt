@@ -11,15 +11,18 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PorterDuff
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.ContextThemeWrapper
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
+import androidx.core.text.util.LocalePreferences
 import com.google.android.material.R
-import com.razvanalbu.material.not.you.widgets.core.VariableFontProvider
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
+import com.razvanalbu.material.not.you.widgets.R as AppR
 import com.razvanalbu.material.not.you.widgets.weather.WeatherState
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager
 import java.io.ByteArrayOutputStream
@@ -42,6 +45,7 @@ class WidgetImageProvider : ContentProvider() {
         val state = WeatherWidgetStateManager.getOrRestoreWeatherState(ctx, widgetId) as? WeatherState.Success
             ?: throw FileNotFoundException("No weather data for widget $widgetId")
 
+        val displayTemp = if (isSystemFahrenheit()) celsiusToFahrenheit(state.temp) else state.temp
         val size = WidgetUtils.getSquareSizePx(ctx, widgetId)
 
         val bytes = getOrCreateImage(
@@ -49,7 +53,7 @@ class WidgetImageProvider : ContentProvider() {
             widgetId = widgetId,
             generation = generation,
             nightMode = nightMode,
-            temp = state.temp,
+            temp = displayTemp,
             iconRes = state.iconRes,
             size = size
         )
@@ -58,7 +62,7 @@ class WidgetImageProvider : ContentProvider() {
             ctx,
             widgetId,
             generation,
-            state.temp,
+            displayTemp,
             state.iconRes,
             size,
             nightMode
@@ -206,6 +210,7 @@ class WidgetImageProvider : ContentProvider() {
             temp: Int,
             iconRes: Int
         ) {
+            val displayTemp = if (isSystemFahrenheit()) celsiusToFahrenheit(temp) else temp
             val generation = generationMap[widgetId] ?: 0
             val size = WidgetUtils.getSquareSizePx(context, widgetId)
 
@@ -222,7 +227,7 @@ class WidgetImageProvider : ContentProvider() {
 
                 pngCache[key] = renderPng(
                     themedContext(context, nightMode),
-                    temp,
+                    displayTemp,
                     iconRes,
                     size
                 )
@@ -238,6 +243,12 @@ class WidgetImageProvider : ContentProvider() {
                 .appendQueryParameter("g", generation.toString())
                 .build()
         }
+
+        private fun isSystemFahrenheit(): Boolean =
+            LocalePreferences.getTemperatureUnit() == LocalePreferences.TemperatureUnit.FAHRENHEIT
+
+        private fun celsiusToFahrenheit(celsius: Int): Int =
+            (celsius * 9 / 5 + 32)
 
         private fun renderPng(
             context: Context,
@@ -275,13 +286,8 @@ internal fun renderMerged(
     val minDimension = minOf(width, height).toFloat()
     val largeTemperature = temp >= 100 || temp <= -10
 
-    val typeface = VariableFontProvider.get(
-        context,
-        wght = 500f,
-        wdth = 100f,
-        grad = 20f,
-        rond = 100f
-    )
+    val typeface = ResourcesCompat.getFont(context, AppR.font.google_sans_flex_weather_subset)
+        ?: Typeface.DEFAULT
 
     val themedContext = ContextThemeWrapper(
         context,

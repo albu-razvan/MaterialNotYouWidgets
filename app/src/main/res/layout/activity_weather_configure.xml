@@ -48,42 +48,50 @@
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="?attr/colorOnSurfaceVariant" />
 
-            <com.google.android.material.card.MaterialCardView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                app:cardBackgroundColor="@android:color/transparent"
-                app:cardCornerRadius="30dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="0dp">
+                android:orientation="vertical">
 
-                <ListView
-                    android:id="@+id/results_list"
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="0px"
+                    android:layout_gravity="bottom"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    app:cardCornerRadius="30dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <ListView
+                        android:id="@+id/results_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:divider="@null"
+                        android:dividerHeight="-8dp"
+                        android:fadeScrollbars="false"
+                        android:fadingEdgeLength="48dp"
+                        android:overScrollMode="never"
+                        android:requiresFadingEdge="vertical"
+                        android:scrollbars="none"
+                        android:stackFromBottom="true" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:id="@+id/nominatim_attribution"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:clipToPadding="false"
-                    android:divider="@null"
-                    android:dividerHeight="-8dp"
-                    android:fadeScrollbars="false"
-                    android:fadingEdgeLength="48dp"
-                    android:overScrollMode="never"
-                    android:requiresFadingEdge="vertical"
-                    android:scrollbars="none"
-                    android:stackFromBottom="true" />
+                    android:fontFamily="@font/google_sans_flex_regular"
+                    android:gravity="center"
+                    android:paddingTop="8dp"
+                    android:text="@string/nominatim_attribution"
+                    android:textAppearance="?attr/textAppearanceLabelSmall"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:translationY="4dp" />
 
-            </com.google.android.material.card.MaterialCardView>
-
-            <TextView
-                android:id="@+id/nominatim_attribution"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/google_sans_flex_regular"
-                android:gravity="center"
-                android:paddingTop="8dp"
-                android:text="@string/nominatim_attribution"
-                android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:translationY="4dp" />
+            </LinearLayout>
 
         </LinearLayout>
 
@@ -130,14 +138,12 @@
         android:id="@+id/provider_toggle_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="36dp"
-        android:layout_marginTop="0dp"
-        android:layout_marginBottom="16dp"
-        android:gravity="center"
-        app:singleSelection="true"
-        app:selectionRequired="true">
+        android:layout_marginHorizontal="46dp"
+        android:layout_marginBottom="8dp"
+        app:selectionRequired="true"
+        app:singleSelection="true">
 
-        <com.google.android.material.button.MaterialButton
+        <com.razvanalbu.material.not.you.widgets.views.StatefulFontButton
             android:id="@+id/provider_metno"
             style="@style/Widget.Material3Expressive.Button.TonalButton"
             android:layout_width="0px"
@@ -145,7 +151,7 @@
             android:layout_weight="1"
             android:text="@string/provider_metno" />
 
-        <com.google.android.material.button.MaterialButton
+        <com.razvanalbu.material.not.you.widgets.views.StatefulFontButton
             android:id="@+id/provider_openmeteo"
             style="@style/Widget.Material3Expressive.Button.TonalButton"
             android:layout_width="0px"
@@ -180,21 +186,26 @@
                 android:background="@null"
                 android:drawableStart="@drawable/ic_search"
                 android:drawablePadding="16dp"
+                android:fadingEdge="horizontal"
                 android:fontFamily="@font/google_sans_flex_regular"
                 android:hint="@string/location"
                 android:imeOptions="actionSearch"
+                android:importantForAutofill="no"
                 android:inputType="textCapWords"
-                android:paddingHorizontal="24dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="10dp"
+                android:requiresFadingEdge="horizontal"
+                android:singleLine="true"
                 android:textAppearance="?attr/textAppearanceBodyLarge" />
 
             <ImageView
                 android:id="@+id/clear_button"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/clear_search"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:src="@drawable/ic_delete"
                 android:visibility="gone" />
 

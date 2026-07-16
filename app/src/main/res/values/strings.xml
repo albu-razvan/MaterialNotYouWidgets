@@ -14,4 +14,6 @@
     <string name="nominatim_attribution">Search results © <a href="https://nominatim.openstreetmap.org">OpenStreetMap contributors</a></string>
     <string name="provider_metno">MET Norway</string>
     <string name="provider_openmeteo">Open-Meteo</string>
+    <string name="fahrenheit_toggle">Fahrenheit</string>
+    <string name="fahrenheit_indicator">F°</string>
 </resources>

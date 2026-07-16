@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.content.res.Configuration
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageView
@@ -36,6 +37,7 @@ class WeatherConfigureActivity : AppCompatActivity() {
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
     private var isImeAnimating = false
+    private var hasChanged = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +66,13 @@ class WeatherConfigureActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (hasChanged) {
+            val refreshIntent = Intent(this, WeatherPillWidget::class.java).apply {
+                action = WeatherPillWidget.ACTION_SILENT_REFRESH
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            sendBroadcast(refreshIntent)
+        }
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
         super.onDestroy()
     }
@@ -119,6 +128,12 @@ class WeatherConfigureActivity : AppCompatActivity() {
         )
 
         ViewCompat.requestApplyInsets(layoutRoot)
+
+        val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
+            controller.isAppearanceLightStatusBars = !isNight
+            controller.isAppearanceLightNavigationBars = !isNight
+        }
     }
 
     private fun updatePaddingForInsets(view: View, insets: WindowInsetsCompat) {
@@ -298,6 +313,8 @@ class WeatherConfigureActivity : AppCompatActivity() {
                 else
                     R.id.provider_metno
             )
+        } else {
+            toggleGroup.check(R.id.provider_metno)
         }
 
         toggleGroup.addOnButtonCheckedListener { group, checkedId, isChecked ->
@@ -314,14 +331,7 @@ class WeatherConfigureActivity : AppCompatActivity() {
             if (config != null) {
                 val updatedConfig = config.copy(provider = provider)
                 WidgetConfig.save(this@WeatherConfigureActivity, appWidgetId, updatedConfig)
-
-                val refreshIntent =
-                    Intent(this@WeatherConfigureActivity, WeatherPillWidget::class.java).apply {
-                        action = WeatherPillWidget.ACTION_SILENT_REFRESH
-                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                    }
-
-                sendBroadcast(refreshIntent)
+                hasChanged = true
             }
         }
     }
@@ -343,15 +353,10 @@ class WeatherConfigureActivity : AppCompatActivity() {
             )
         )
 
+        hasChanged = true
         setResult(RESULT_OK, Intent().apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
         })
-
-        val refreshIntent = Intent(this, WeatherPillWidget::class.java).apply {
-            action = WeatherPillWidget.ACTION_SILENT_REFRESH
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        }
-        sendBroadcast(refreshIntent)
 
         finish()
     }
