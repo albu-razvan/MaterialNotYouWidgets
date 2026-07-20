@@ -54,6 +54,12 @@ internal object WeatherWidgetStateManager {
         animContentReady.remove(appWidgetId)
     }
 
+    fun resetAnimation(appWidgetId: Int) {
+        animPhase.remove(appWidgetId)
+        animPhaseStartTime.remove(appWidgetId)
+        animContentReady.remove(appWidgetId)
+    }
+
     fun tickAnimation(
         appWidgetId: Int,
         frameTimeNanos: Long,

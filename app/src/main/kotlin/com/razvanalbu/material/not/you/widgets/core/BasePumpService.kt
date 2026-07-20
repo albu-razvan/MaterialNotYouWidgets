@@ -114,6 +114,11 @@ abstract class BasePumpService : Service() {
         Choreographer.getInstance().removeFrameCallback(frameCallback)
         lastBitmap?.recycle()
         lastBitmap = null
+
+        if (widgetId != -1 && WeatherWidgetStateManager.getAnimPhase(widgetId) != PumpPhase.IDLE) {
+            WeatherWidgetStateManager.reapplyState(this, widgetId)
+            WeatherWidgetStateManager.resetAnimation(widgetId)
+        }
     }
 
     private fun processFrame(frameTimeNanos: Long) {

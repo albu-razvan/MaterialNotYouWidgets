@@ -54,7 +54,14 @@ internal object WeatherWidgetViews {
     fun createResetViews(context: Context, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.weather_pill)
         setTapRefreshIntent(context, views, appWidgetId)
+
         views.setImageViewResource(R.id.morph_image, BasePumpService.getMorphShapeRes(appWidgetId))
+        views.setFloat(R.id.content_container, "setScaleX", 1f)
+        views.setFloat(R.id.content_container, "setScaleY", 1f)
+        views.setFloat(R.id.content_image, "setScaleX", 1f)
+        views.setFloat(R.id.content_image, "setScaleY", 1f)
+        views.setFloat(R.id.content_image, "setAlpha", 1f)
+
         return views
     }
 
