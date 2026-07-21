@@ -7,7 +7,6 @@ import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
 import com.razvanalbu.material.not.you.widgets.core.ShapeType
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
-import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 
 class FramePumpService : BasePumpService() {
 
@@ -52,13 +51,6 @@ class FramePumpService : BasePumpService() {
     override fun onBeforeMorphOut() {
         resetContentState()
         WeatherWidgetStateManager.flushContentDuringMorphOut(this, widgetId)
-
-        val state = WeatherWidgetStateManager.getContentState(widgetId)
-        val weather = WeatherWidgetStateManager.weatherState(widgetId) as? WeatherState.Success
-        if (state == ContentState.SUCCESS && weather != null) {
-            WidgetImageProvider.invalidateCache(widgetId)
-            WidgetImageProvider.precache(this, widgetId, weather.temp, weather.iconRes)
-        }
     }
 
     override fun onAnimationComplete() {
