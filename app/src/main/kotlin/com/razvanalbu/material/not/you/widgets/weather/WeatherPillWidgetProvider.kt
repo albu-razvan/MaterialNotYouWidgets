@@ -3,7 +3,7 @@ package com.razvanalbu.material.not.you.widgets.weather
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -12,13 +12,16 @@ import android.os.SystemClock
 import android.util.Log
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
+import com.razvanalbu.material.not.you.widgets.core.BaseWidgetProvider
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
+import com.razvanalbu.material.not.you.widgets.core.WidgetConfigProxyActivity
+
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
 import com.razvanalbu.material.not.you.widgets.weather.providers.WeatherProviders
 import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 
-class WeatherPillWidget : AppWidgetProvider() {
+class WeatherPillWidgetProvider : BaseWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
@@ -144,7 +147,7 @@ class WeatherPillWidget : AppWidgetProvider() {
 
             Intent.ACTION_BOOT_COMPLETED -> {
                 val appWidgetIds = AppWidgetManager.getInstance(context).getAppWidgetIds(
-                    android.content.ComponentName(context, WeatherPillWidget::class.java)
+                    ComponentName(context, WeatherPillWidgetProvider::class.java)
                 )
 
                 for (appWidgetId in appWidgetIds) {
@@ -236,6 +239,9 @@ class WeatherPillWidget : AppWidgetProvider() {
                 }
 
                 if (result is WeatherState.Success) {
+                    WeatherWidgetStateManager.cacheAndPersistWeatherState(
+                        context, appWidgetId, result
+                    )
                     WidgetImageProvider.nextGeneration(appWidgetId)
                     WidgetImageProvider.invalidateCache(appWidgetId)
                     WidgetImageProvider.precache(
@@ -299,12 +305,16 @@ class WeatherPillWidget : AppWidgetProvider() {
     }
 
     private fun openConfigActivity(context: Context, appWidgetId: Int) {
-        val intent = Intent(context, WeatherConfigProxyActivity::class.java).apply {
+        val intent = Intent(context, WidgetConfigProxyActivity::class.java).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
         context.startActivity(intent)
+    }
+
+    override fun getConfigurationActivity(): Class<*> {
+        return WeatherConfigureActivity::class.java
     }
 
     companion object {

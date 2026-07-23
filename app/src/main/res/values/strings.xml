@@ -16,4 +16,10 @@
     <string name="provider_openmeteo">Open-Meteo</string>
     <string name="fahrenheit_toggle">Fahrenheit</string>
     <string name="fahrenheit_indicator">F°</string>
+    <string name="widget_name_quotes">Quotes</string>
+    <string name="done">Done</string>
+    <string name="your_quotes">Your Quotes</string>
+    <string name="nothing_here_yet">Nothing here yet</string>
+    <string name="quote_text">Quote text…</string>
+    <string name="author_name">Author name…</string>
 </resources>

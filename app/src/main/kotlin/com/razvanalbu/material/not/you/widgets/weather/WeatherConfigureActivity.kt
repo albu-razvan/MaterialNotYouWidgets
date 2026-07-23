@@ -11,54 +11,30 @@ import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
-import android.content.res.Configuration
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButtonToggleGroup
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.updatePadding
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.razvanalbu.material.not.you.widgets.R
+import com.razvanalbu.material.not.you.widgets.core.BaseConfigureActivity
 import com.razvanalbu.material.not.you.widgets.weather.providers.NominatimApi
-import kotlin.math.max
 import kotlin.random.Random
 
-class WeatherConfigureActivity : AppCompatActivity() {
+class WeatherConfigureActivity : BaseConfigureActivity() {
 
-    private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+    override val layoutResId = R.layout.activity_weather_configure
+
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
-    private var isImeAnimating = false
-    private var hasChanged = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-        setContentView(R.layout.activity_weather_configure)
 
-        setResult(RESULT_CANCELED, Intent().apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        })
-
-        appWidgetId = intent?.getIntExtra(
-            AppWidgetManager.EXTRA_APPWIDGET_ID,
-            AppWidgetManager.INVALID_APPWIDGET_ID
-        ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
-
-        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
-            finish()
-            return
-        }
-
-        setupWindowInsets()
         setupSearch()
         setupProviderSelector()
 
@@ -67,85 +43,14 @@ class WeatherConfigureActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (hasChanged) {
-            val refreshIntent = Intent(this, WeatherPillWidget::class.java).apply {
-                action = WeatherPillWidget.ACTION_SILENT_REFRESH
+            val refreshIntent = Intent(this, WeatherPillWidgetProvider::class.java).apply {
+                action = WeatherPillWidgetProvider.ACTION_SILENT_REFRESH
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
             sendBroadcast(refreshIntent)
         }
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
         super.onDestroy()
-    }
-
-    private fun setupWindowInsets() {
-        val root = findViewById<ViewGroup>(android.R.id.content)
-        val layoutRoot = findViewById<ViewGroup>(R.id.root_layout)
-
-        root.clipToPadding = false
-        root.clipChildren = false
-        layoutRoot.clipToPadding = false
-        layoutRoot.clipChildren = false
-
-        ViewCompat.setOnApplyWindowInsetsListener(layoutRoot) { view, insets ->
-            if (!isImeAnimating) {
-                updatePaddingForInsets(view, insets)
-            }
-
-            insets
-        }
-
-        ViewCompat.setWindowInsetsAnimationCallback(
-            layoutRoot,
-            object : WindowInsetsAnimationCompat.Callback(
-                DISPATCH_MODE_CONTINUE_ON_SUBTREE
-            ) {
-                override fun onPrepare(animation: WindowInsetsAnimationCompat) {
-                    if ((animation.typeMask and WindowInsetsCompat.Type.ime()) != 0) {
-                        isImeAnimating = true
-                    }
-
-                    super.onPrepare(animation)
-                }
-
-                override fun onProgress(
-                    insets: WindowInsetsCompat,
-                    runningAnimations: MutableList<WindowInsetsAnimationCompat>
-                ): WindowInsetsCompat {
-                    updatePaddingForInsets(layoutRoot, insets)
-
-                    return insets
-                }
-
-                override fun onEnd(animation: WindowInsetsAnimationCompat) {
-                    if ((animation.typeMask and WindowInsetsCompat.Type.ime()) != 0) {
-                        isImeAnimating = false
-                        ViewCompat.requestApplyInsets(layoutRoot)
-                    }
-
-                    super.onEnd(animation)
-                }
-            }
-        )
-
-        ViewCompat.requestApplyInsets(layoutRoot)
-
-        val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
-            controller.isAppearanceLightStatusBars = !isNight
-            controller.isAppearanceLightNavigationBars = !isNight
-        }
-    }
-
-    private fun updatePaddingForInsets(view: View, insets: WindowInsetsCompat) {
-        val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-        val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-
-        view.updatePadding(
-            left = systemBars.left,
-            top = systemBars.top,
-            right = systemBars.right,
-            bottom = max(systemBars.bottom, ime.bottom)
-        )
     }
 
     private fun setupSearch() {
@@ -354,9 +259,7 @@ class WeatherConfigureActivity : AppCompatActivity() {
         )
 
         hasChanged = true
-        setResult(RESULT_OK, Intent().apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        })
+        setResult(RESULT_OK, Intent())
 
         finish()
     }

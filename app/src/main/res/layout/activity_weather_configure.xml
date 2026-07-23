@@ -206,7 +206,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/clear_search"
                 android:padding="6dp"
-                android:src="@drawable/ic_delete"
+                android:src="@drawable/ic_backspace"
                 android:visibility="gone" />
 
         </LinearLayout>

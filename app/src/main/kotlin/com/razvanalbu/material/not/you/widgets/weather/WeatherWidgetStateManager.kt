@@ -230,6 +230,15 @@ internal object WeatherWidgetStateManager {
         cachedWeatherState[appWidgetId] ?: loadPersistedWeatherState(context, appWidgetId)
     }
 
+    fun cacheAndPersistWeatherState(context: Context, appWidgetId: Int, state: WeatherState) {
+        synchronized(lock) {
+            if (state is WeatherState.Success) {
+                cachedWeatherState[appWidgetId] = state
+                persistWeatherState(context, appWidgetId, state)
+            }
+        }
+    }
+
     private fun persistWeatherState(context: Context, appWidgetId: Int, state: WeatherState) {
         if (state is WeatherState.Success) {
             context.getSharedPreferences(PREFS_WEATHER, Context.MODE_PRIVATE).edit {

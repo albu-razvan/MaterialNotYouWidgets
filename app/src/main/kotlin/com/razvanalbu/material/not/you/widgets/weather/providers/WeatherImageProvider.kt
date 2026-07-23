@@ -1,247 +1,73 @@
 package com.razvanalbu.material.not.you.widgets.weather.providers
 
-import android.content.ContentProvider
-import android.content.ContentValues
 import android.content.Context
-import android.content.res.Configuration
-import android.database.Cursor
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.net.Uri
-import android.os.ParcelFileDescriptor
-import android.util.Log
 import android.view.ContextThemeWrapper
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.text.util.LocalePreferences
 import com.google.android.material.R
+import com.razvanalbu.material.not.you.widgets.core.BaseWidgetImageProvider
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
 import com.razvanalbu.material.not.you.widgets.R as AppR
 import com.razvanalbu.material.not.you.widgets.weather.WeatherState
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager
-import java.io.ByteArrayOutputStream
 import java.io.FileNotFoundException
-import java.util.concurrent.ConcurrentHashMap
 
-class WidgetImageProvider : ContentProvider() {
+class WidgetImageProvider : BaseWidgetImageProvider() {
 
-    override fun onCreate(): Boolean = true
+    override val authoritySuffix = ".widgetimages"
+    override val cacheKeyPrefix = "content"
+    override val logTag = "WidgetImageProvider"
 
-    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
-        val ctx = context ?: throw FileNotFoundException("Provider not initialized")
+    override fun getWidgetDimensions(context: Context, widgetId: Int): Pair<Int, Int> {
+        val size = WidgetUtils.getSquareSizePx(context, widgetId)
 
-        val widgetId = extractWidgetId(uri)
-        val generation = generationMap[widgetId] ?: 0
-        val nightMode = currentNightMode(ctx)
+        return Pair(size, size)
+    }
 
-        Log.d(TAG, "openFile widget=$widgetId generation=$generation")
-
-        val state = WeatherWidgetStateManager.getOrRestoreWeatherState(ctx, widgetId) as? WeatherState.Success
+    override fun renderContent(context: Context, widgetId: Int, width: Int, height: Int): Bitmap {
+        val state = WeatherWidgetStateManager.getOrRestoreWeatherState(
+            context, widgetId
+        ) as? WeatherState.Success
             ?: throw FileNotFoundException("No weather data for widget $widgetId")
 
         val displayTemp = if (isSystemFahrenheit()) celsiusToFahrenheit(state.temp) else state.temp
-        val size = WidgetUtils.getSquareSizePx(ctx, widgetId)
-
-        val bytes = getOrCreateImage(
-            context = ctx,
-            widgetId = widgetId,
-            generation = generation,
-            nightMode = nightMode,
-            temp = displayTemp,
-            iconRes = state.iconRes,
-            size = size
-        )
-
-        precacheOppositeTheme(
-            ctx,
-            widgetId,
-            generation,
-            displayTemp,
-            state.iconRes,
-            size,
-            nightMode
-        )
-
-        return createPipe(bytes, cacheKey(widgetId, nightMode, generation))
-    }
-
-    override fun getType(uri: Uri) = "image/png"
-
-    override fun query(
-        uri: Uri,
-        projection: Array<String>?,
-        selection: String?,
-        selectionArgs: Array<String>?,
-        sortOrder: String?
-    ): Cursor? = null
-
-    override fun insert(uri: Uri, values: ContentValues?) = null
-
-    override fun update(
-        uri: Uri,
-        values: ContentValues?,
-        selection: String?,
-        selectionArgs: Array<String>?
-    ) = 0
-
-    override fun delete(
-        uri: Uri,
-        selection: String?,
-        selectionArgs: Array<String>?
-    ) = 0
-
-    private fun extractWidgetId(uri: Uri): Int {
-        val segments = uri.pathSegments
-
-        if (segments.size < 2 || segments[0] != "render") {
-            throw FileNotFoundException("Invalid URI: $uri")
-        }
-
-        return segments[1].toIntOrNull()
-            ?: throw FileNotFoundException("Invalid widget ID")
-    }
-
-    private fun currentNightMode(context: Context): Int =
-        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-
-    private fun getOrCreateImage(
-        context: Context,
-        widgetId: Int,
-        generation: Int,
-        nightMode: Int,
-        temp: Int,
-        iconRes: Int,
-        size: Int
-    ): ByteArray {
-        val key = cacheKey(widgetId, nightMode, generation)
-
-        return pngCache.computeIfAbsent(key) {
-            renderPng(themedContext(context, nightMode), temp, iconRes, size)
-        }
-    }
-
-    private fun precacheOppositeTheme(
-        context: Context,
-        widgetId: Int,
-        generation: Int,
-        temp: Int,
-        iconRes: Int,
-        size: Int,
-        currentNightMode: Int
-    ) {
-        val otherNightMode =
-            if (currentNightMode == Configuration.UI_MODE_NIGHT_NO)
-                Configuration.UI_MODE_NIGHT_YES
-            else
-                Configuration.UI_MODE_NIGHT_NO
-
-        val key = cacheKey(widgetId, otherNightMode, generation)
-
-        if (pngCache.containsKey(key)) {
-            return
-        }
-
-        pngCache.putIfAbsent(
-            key,
-            renderPng(themedContext(context, otherNightMode), temp, iconRes, size)
-        )
-    }
-
-    private fun createPipe(
-        bytes: ByteArray,
-        threadName: String
-    ): ParcelFileDescriptor {
-        val (readSide, writeSide) = ParcelFileDescriptor.createPipe()
-
-        Thread({
-            try {
-                ParcelFileDescriptor.AutoCloseOutputStream(writeSide).use {
-                    it.write(bytes)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Pipe write failed", e)
-            }
-        }, "provider-serve-$threadName").start()
-
-        return readSide
+        return renderMerged(context, displayTemp, state.iconRes, width, height)
     }
 
     companion object {
-        private const val AUTHORITY_SUFFIX = ".widgetimages"
-        private const val TAG = "WidgetImageProvider"
+        fun nextGeneration(widgetId: Int) = BaseWidgetImageProvider.nextGeneration(widgetId)
 
-        private val pngCache = ConcurrentHashMap<String, ByteArray>()
-        private val generationMap = ConcurrentHashMap<Int, Int>()
+        fun invalidateCache(widgetId: Int) = BaseWidgetImageProvider.invalidateCache(widgetId)
 
-        private fun cacheKey(
-            widgetId: Int,
-            nightMode: Int,
-            generation: Int
-        ) = "${widgetId}_content_${nightMode}_g$generation"
+        fun getCachedBitmap(context: Context, widgetId: Int): Bitmap? =
+            getCachedBitmap(context, widgetId, "content")
 
-        fun nextGeneration(widgetId: Int) {
-            generationMap.merge(widgetId, 1) { old, _ -> old + 1 }
-        }
+        fun uri(packageName: String, widgetId: Int): Uri =
+            uri(packageName, widgetId, ".widgetimages")
 
-        fun invalidateCache(widgetId: Int) {
-            pngCache.keys.removeAll {
-                it.startsWith("${widgetId}_")
-            }
-        }
-
-        @JvmStatic
-        fun getCachedBitmap(context: Context, widgetId: Int): Bitmap? {
-            val generation = generationMap[widgetId] ?: 0
-            val baseNightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            val key = cacheKey(widgetId, baseNightMode, generation)
-            val bytes = pngCache[key] ?: return null
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        }
-
-        fun precache(
-            context: Context,
-            widgetId: Int,
-            temp: Int,
-            iconRes: Int
-        ) {
-            val displayTemp = if (isSystemFahrenheit()) celsiusToFahrenheit(temp) else temp
-            val generation = generationMap[widgetId] ?: 0
+        fun precache(context: Context, widgetId: Int, temp: Int, iconRes: Int) {
+            val generation = currentGeneration(widgetId)
             val size = WidgetUtils.getSquareSizePx(context, widgetId)
-
+            val displayTemp = if (isSystemFahrenheit()) celsiusToFahrenheit(temp) else temp
             listOf(
-                Configuration.UI_MODE_NIGHT_YES,
-                Configuration.UI_MODE_NIGHT_NO
+                android.content.res.Configuration.UI_MODE_NIGHT_YES,
+                android.content.res.Configuration.UI_MODE_NIGHT_NO
             ).forEach { nightMode ->
-
-                val key = cacheKey(widgetId, nightMode, generation)
-
-                if (pngCache.containsKey(key)) {
-                    return@forEach
-                }
-
-                pngCache[key] = renderPng(
-                    themedContext(context, nightMode),
-                    displayTemp,
-                    iconRes,
-                    size
-                )
+                val key = cacheKey(widgetId, nightMode, generation, "content")
+                if (containsPng(key)) return@forEach
+                val ctx = themedContext(context, nightMode)
+                val bitmap = renderMerged(ctx, displayTemp, iconRes, size, size)
+                storePng(key, compressPng(bitmap))
             }
-        }
-
-        fun uri(packageName: String, widgetId: Int): Uri {
-            val generation = generationMap[widgetId] ?: 0
-            return Uri.Builder()
-                .scheme("content")
-                .authority(packageName + AUTHORITY_SUFFIX)
-                .path("render/$widgetId/content")
-                .appendQueryParameter("g", generation.toString())
-                .build()
         }
 
         private fun isSystemFahrenheit(): Boolean =
@@ -249,29 +75,6 @@ class WidgetImageProvider : ContentProvider() {
 
         private fun celsiusToFahrenheit(celsius: Int): Int =
             (celsius * 9 / 5 + 32)
-
-        private fun renderPng(
-            context: Context,
-            temp: Int,
-            iconRes: Int,
-            size: Int
-        ): ByteArray {
-            val bitmap = renderMerged(context, temp, iconRes, size, size)
-
-            return ByteArrayOutputStream().use { stream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                bitmap.recycle()
-                stream.toByteArray()
-            }
-        }
-
-        private fun themedContext(context: Context, nightMode: Int): Context {
-            val config = Configuration(context.resources.configuration).apply {
-                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
-            }
-
-            return context.createConfigurationContext(config)
-        }
     }
 }
 

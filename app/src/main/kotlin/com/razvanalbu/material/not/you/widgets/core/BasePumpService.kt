@@ -102,8 +102,8 @@ abstract class BasePumpService : Service() {
             .build()
     }
 
-    protected open fun getNotificationTitle(): String = "Widget"
-    protected open fun getNotificationText(): String = "Loading..."
+    protected open fun getNotificationTitle(): String = "WidgetPumpService"
+    protected open fun getNotificationText(): String = "An animation is ongoing"
 
     private fun reset() {
         WeatherWidgetStateManager.startAnimation(widgetId)
@@ -248,7 +248,6 @@ abstract class BasePumpService : Service() {
     companion object {
         const val EXTRA_APPWIDGET_ID = "app_widget_id"
         const val ACTION_MORPH_IN = "morph_in"
-        const val ACTION_MORPH_OUT = "morph_out"
 
         @Volatile
         private var activeInstance: BasePumpService? = null
@@ -270,18 +269,6 @@ abstract class BasePumpService : Service() {
             val instance = activeInstance ?: return
             if (instance.widgetId != appWidgetId) return
             instance.squarePx = squarePx
-        }
-
-        @JvmStatic
-        fun getMorphShapeRes(widgetId: Int): Int {
-            val instance = activeInstance ?: return R.drawable.pill_shape
-            if (instance.widgetId != widgetId) return R.drawable.pill_shape
-            val phase = WeatherWidgetStateManager.getAnimPhase(widgetId)
-            return if (phase == null || phase == PumpPhase.IDLE) {
-                R.drawable.pill_shape
-            } else {
-                R.drawable.pill_shape
-            }
         }
     }
 }

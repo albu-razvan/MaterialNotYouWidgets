@@ -43,6 +43,9 @@ class WeatherRefreshWorker(
         }
 
         if (result is WeatherState.Success) {
+            WeatherWidgetStateManager.cacheAndPersistWeatherState(
+                applicationContext, appWidgetId, result
+            )
             WidgetImageProvider.nextGeneration(appWidgetId)
             WidgetImageProvider.invalidateCache(appWidgetId)
             WidgetImageProvider.precache(

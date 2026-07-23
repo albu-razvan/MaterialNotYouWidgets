@@ -19,8 +19,19 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false">
 
+        <activity
+            android:name=".core.WidgetConfigProxyActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Config.Proxy">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Weather -->
+
         <receiver
-            android:name=".weather.WeatherPillWidget"
+            android:name=".weather.WeatherPillWidgetProvider"
             android:exported="true"
             android:label="@string/widget_name">
             <intent-filter>
@@ -39,15 +50,6 @@
             android:grantUriPermissions="true" />
 
         <activity
-            android:name=".weather.WeatherConfigProxyActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Config.Proxy">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
-            </intent-filter>
-        </activity>
-
-        <activity
             android:name=".weather.WeatherConfigureActivity"
             android:autoRemoveFromRecents="true"
             android:excludeFromRecents="true"
@@ -58,6 +60,34 @@
             android:name=".weather.FramePumpService"
             android:exported="false"
             android:foregroundServiceType="shortService" />
+
+        <!-- Quotes -->
+
+        <receiver
+            android:name=".quotes.QuotesWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_name_quotes">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quotes_info" />
+        </receiver>
+
+        <provider
+            android:name=".quotes.providers.QuotesImageProvider"
+            android:authorities="${applicationId}.quoteswidgetimages"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+
+        <activity
+            android:name=".quotes.QuotesConfigureActivity"
+            android:autoRemoveFromRecents="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.Material3Expressive.DynamicColors.DayNight.NoActionBar" />
 
     </application>
 

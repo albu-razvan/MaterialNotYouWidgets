@@ -12,6 +12,27 @@ import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager
 import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 
 internal object WeatherWidgetViews {
+    fun createViews(context: Context, appWidgetId: Int, state: ContentState): RemoteViews {
+        val views = createResetViews(context, appWidgetId)
+
+        applyContentState(views, context, appWidgetId, state)
+
+        return views
+    }
+
+    fun createResetViews(context: Context, appWidgetId: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.weather_pill)
+        setTapRefreshIntent(context, views, appWidgetId)
+
+        views.setImageViewResource(R.id.morph_image, R.drawable.pill_shape)
+        views.setFloat(R.id.content_container, "setScaleX", 1f)
+        views.setFloat(R.id.content_container, "setScaleY", 1f)
+        views.setFloat(R.id.content_image, "setScaleX", 1f)
+        views.setFloat(R.id.content_image, "setScaleY", 1f)
+        views.setFloat(R.id.content_image, "setAlpha", 1f)
+
+        return views
+    }
 
     fun applyContentState(views: RemoteViews, context: Context, appWidgetId: Int, state: ContentState) {
         views.setViewVisibility(R.id.content_image, View.VISIBLE)
@@ -51,34 +72,14 @@ internal object WeatherWidgetViews {
         }
     }
 
-    fun createResetViews(context: Context, appWidgetId: Int): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.weather_pill)
-        setTapRefreshIntent(context, views, appWidgetId)
-
-        views.setImageViewResource(R.id.morph_image, BasePumpService.getMorphShapeRes(appWidgetId))
-        views.setFloat(R.id.content_container, "setScaleX", 1f)
-        views.setFloat(R.id.content_container, "setScaleY", 1f)
-        views.setFloat(R.id.content_image, "setScaleX", 1f)
-        views.setFloat(R.id.content_image, "setScaleY", 1f)
-        views.setFloat(R.id.content_image, "setAlpha", 1f)
-
-        return views
-    }
-
-    fun createViews(context: Context, appWidgetId: Int, state: ContentState): RemoteViews {
-        val views = createResetViews(context, appWidgetId)
-        applyContentState(views, context, appWidgetId, state)
-        return views
-    }
-
     private fun setTapRefreshIntent(context: Context, views: RemoteViews, appWidgetId: Int) {
         views.setOnClickPendingIntent(
             R.id.content_container,
             PendingIntent.getBroadcast(
                 context,
                 appWidgetId,
-                Intent(context, WeatherPillWidget::class.java).apply {
-                    action = WeatherPillWidget.ACTION_TAP_REFRESH
+                Intent(context, WeatherPillWidgetProvider::class.java).apply {
+                    action = WeatherPillWidgetProvider.ACTION_TAP_REFRESH
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

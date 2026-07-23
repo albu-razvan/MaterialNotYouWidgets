@@ -6,34 +6,45 @@ import android.os.Build
 
 object WidgetUtils {
 
-    fun getSquareSizePx(context: Context, widgetId: Int, fallback: Int = 400): Int {
-        if (widgetId < 0) return fallback
+    fun getSizePx(
+        context: Context,
+        widgetId: Int,
+        fallbackWidth: Int = 400,
+        fallbackHeight: Int = 300
+    ): Pair<Int, Int> {
+        if (widgetId < 0) return Pair(fallbackWidth, fallbackHeight)
         val options = AppWidgetManager.getInstance(context).getAppWidgetOptions(widgetId)
 
-        val squareDp = if (Build.VERSION.SDK_INT >= 33) {
+        if (Build.VERSION.SDK_INT >= 33) {
             val sizes = options.getParcelableArrayList(
                 AppWidgetManager.OPTION_APPWIDGET_SIZES,
                 android.util.SizeF::class.java
             )
             if (!sizes.isNullOrEmpty()) {
-                minOf(sizes[0].width, sizes[0].height).toInt()
-            } else 0
-        } else 0
-
-        if (squareDp > 0) {
-            return (squareDp * context.resources.displayMetrics.density + 0.5f).toInt()
+                val density = context.resources.displayMetrics.density
+                return Pair(
+                    (sizes[0].width * density + 0.5f).toInt(),
+                    (sizes[0].height * density + 0.5f).toInt()
+                )
+            }
         }
 
         val maxW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
         val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
         if (maxW > 0 && maxH > 0) {
-            val dp = minOf(maxW, maxH)
-            return (dp * context.resources.displayMetrics.density + 0.5f).toInt()
+            val density = context.resources.displayMetrics.density
+            return Pair(
+                (maxW * density + 0.5f).toInt(),
+                (maxH * density + 0.5f).toInt()
+            )
         }
 
-        val displayMetrics = context.resources.displayMetrics
-        val screenDp = minOf(displayMetrics.widthPixels, displayMetrics.heightPixels) / displayMetrics.density
-        val cappedDp = minOf(screenDp.toInt(), 600)
-        return (cappedDp * displayMetrics.density + 0.5f).toInt()
+        return Pair(fallbackWidth, fallbackHeight)
+    }
+
+    fun getSquareSizePx(context: Context, widgetId: Int, fallback: Int = 400): Int {
+        val (w, h) = getSizePx(context, widgetId, fallback, fallback)
+
+        return minOf(w, h)
     }
 }
