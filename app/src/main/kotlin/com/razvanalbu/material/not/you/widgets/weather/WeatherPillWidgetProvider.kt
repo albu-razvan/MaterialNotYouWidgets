@@ -1,20 +1,18 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
 import com.razvanalbu.material.not.you.widgets.R
 import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.BaseWidgetProvider
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
 import com.razvanalbu.material.not.you.widgets.core.WidgetConfigProxyActivity
+import java.util.concurrent.TimeUnit
 
 import com.razvanalbu.material.not.you.widgets.core.WidgetUtils
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
@@ -200,12 +198,17 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
         // @formatter:on
 
         val mainHandler = Handler(Looper.getMainLooper())
+        var effectiveUserInitiated = isUserInitiated
 
-        if (isUserInitiated) {
+        if (effectiveUserInitiated) {
+            FramePumpService.resetServiceStartLatch()
             try {
                 context.startForegroundService(serviceIntent)
             } catch (_: Exception) {
-                scheduleServiceStart(context, appWidgetId, serviceIntent)
+                effectiveUserInitiated = false
+                WeatherWidgetStateManager.applyState(
+                    context, appWidgetId, ContentState.UPDATING
+                )
             }
         } else {
             WeatherWidgetStateManager.applyState(
@@ -214,6 +217,10 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
         }
 
         Thread {
+            val serviceStarted = effectiveUserInitiated &&
+                    FramePumpService.serviceStartLatch.await(5L, TimeUnit.SECONDS) &&
+                    FramePumpService.serviceStarted
+
             try {
                 val config = WidgetConfig.load(context, appWidgetId)
 
@@ -255,7 +262,7 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
                         context, appWidgetId, contentState, result
                     )
 
-                    if (isUserInitiated) {
+                    if (serviceStarted) {
                         WeatherWidgetStateManager.requestMorphOut(appWidgetId)
                     }
                 }
@@ -268,29 +275,12 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
                         WeatherState.Error(WeatherState.ErrorType.UNKNOWN)
                     )
 
-                    if (isUserInitiated) {
+                    if (serviceStarted) {
                         WeatherWidgetStateManager.requestMorphOut(appWidgetId)
                     }
                 }
             }
         }.apply { name = "widget-init-$appWidgetId" }.start()
-    }
-
-    private fun scheduleServiceStart(
-        context: Context,
-        appWidgetId: Int,
-        serviceIntent: Intent,
-        delayMs: Long = 3000L
-    ) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.setAndAllowWhileIdle(
-            AlarmManager.ELAPSED_REALTIME_WAKEUP,
-            SystemClock.elapsedRealtime() + delayMs,
-            PendingIntent.getForegroundService(
-                context, appWidgetId, serviceIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-        )
     }
 
     private fun schedulePeriodicRefresh(context: Context, appWidgetId: Int) {

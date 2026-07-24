@@ -77,7 +77,19 @@ abstract class BasePumpService : Service() {
                 reset()
 
                 val notification = createNotification()
-                startForeground(notificationId, notification)
+                try {
+                    startForeground(notificationId, notification)
+                    onForegroundStartComplete(true)
+                } catch (_: Exception) {
+                    WeatherWidgetStateManager.resetAnimation(widgetId)
+                    cleanup()
+
+                    onForegroundStartComplete(false)
+                    stopSelf()
+
+                    return START_NOT_STICKY
+                }
+
                 Choreographer.getInstance().postFrameCallback(frameCallback)
             }
         }
@@ -131,6 +143,7 @@ abstract class BasePumpService : Service() {
                 morphOutStartRotation = event.startRotation
                 morphOutTargetRotation = event.targetRotation
             }
+
             is WeatherWidgetStateManager.TickResult.Completed -> {
                 onAnimationComplete()
                 cleanup()
@@ -138,6 +151,7 @@ abstract class BasePumpService : Service() {
                 stopSelf()
                 return
             }
+
             else -> {}
         }
 
@@ -221,11 +235,18 @@ abstract class BasePumpService : Service() {
 
     protected open fun onAnimationComplete() {}
 
+    protected open fun onForegroundStartComplete(success: Boolean) {}
+
     protected fun resolveShapeColor(): Int {
-        val wrapper = ContextThemeWrapper(this, com.google.android.material.R.style.Theme_Material3Expressive_DynamicColors_DayNight)
-        val ta = wrapper.obtainStyledAttributes(intArrayOf(
-            com.google.android.material.R.attr.colorSurfaceContainer,
-        ))
+        val wrapper = ContextThemeWrapper(
+            this,
+            com.google.android.material.R.style.Theme_Material3Expressive_DynamicColors_DayNight
+        )
+        val ta = wrapper.obtainStyledAttributes(
+            intArrayOf(
+                com.google.android.material.R.attr.colorSurfaceContainer,
+            )
+        )
         val color = ta.getColor(0, 0xFF6750A4.toInt())
         ta.recycle()
         return color

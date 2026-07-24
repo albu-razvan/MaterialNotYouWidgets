@@ -7,6 +7,7 @@ import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.core.PumpPhase
 import com.razvanalbu.material.not.you.widgets.core.ShapeType
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
+import java.util.concurrent.CountDownLatch
 
 class FramePumpService : BasePumpService() {
 
@@ -57,6 +58,16 @@ class FramePumpService : BasePumpService() {
         WeatherWidgetStateManager.reapplyState(this, widgetId)
     }
 
+    override fun onForegroundStartComplete(success: Boolean) {
+        serviceStarted = success
+        serviceStartLatch.countDown()
+        if (!success) {
+            WeatherWidgetStateManager.applyState(
+                this, widgetId, ContentState.UPDATING
+            )
+        }
+    }
+
     companion object {
         private const val CHANNEL_ID = "widget_morph_animation"
         private const val TAG = "FramePumpService"
@@ -66,6 +77,16 @@ class FramePumpService : BasePumpService() {
 
         @Volatile
         var onPushFrameView: ((RemoteViews) -> Unit)? = null
+
+        @Volatile
+        var serviceStarted = false
+
+        var serviceStartLatch = CountDownLatch(1)
+
+        fun resetServiceStartLatch() {
+            serviceStarted = false
+            serviceStartLatch = CountDownLatch(1)
+        }
 
         @JvmStatic
         val currentPhase: PumpPhase

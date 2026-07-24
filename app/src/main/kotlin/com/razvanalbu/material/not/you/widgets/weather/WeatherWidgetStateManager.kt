@@ -28,6 +28,7 @@ internal object WeatherWidgetStateManager {
 
     private const val MORPH_DURATION_NS = 500_000_000L
     private const val MIN_ROTATE_NS = 300_000_000L
+    private const val MAX_ROTATE_WAIT_NS = 15_000_000_000L
 
     private data class PendingUpdate(
         val contentState: ContentState,
@@ -67,7 +68,7 @@ internal object WeatherWidgetStateManager {
         spinDegrees: Float
     ): TickResult {
         val phase = animPhase[appWidgetId] ?: return TickResult.None
-        var startTime = animPhaseStartTime[appWidgetId] ?: return TickResult.None
+        val startTime = animPhaseStartTime[appWidgetId] ?: return TickResult.None
 
         if (startTime == 0L) {
             animPhaseStartTime[appWidgetId] = frameTimeNanos
@@ -88,19 +89,22 @@ internal object WeatherWidgetStateManager {
             }
 
             PumpPhase.ROTATE -> {
+                val elapsed = frameTimeNanos - startTime
                 if (appWidgetId in animContentReady) {
-                    val elapsed = frameTimeNanos - startTime
                     if (elapsed >= MIN_ROTATE_NS) {
-                        transitionToMorphOut(
+                        return transitionToMorphOut(
                             appWidgetId, frameTimeNanos,
                             currentRotation, spinDegrees
                         )
-                    } else {
-                        TickResult.None
                     }
-                } else {
-                    TickResult.None
+                } else if (elapsed >= MAX_ROTATE_WAIT_NS) {
+                    return transitionToMorphOut(
+                        appWidgetId, frameTimeNanos,
+                        currentRotation, spinDegrees
+                    )
                 }
+
+                TickResult.None
             }
 
             PumpPhase.MORPH_OUT -> {
