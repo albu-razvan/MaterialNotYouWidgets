@@ -9,9 +9,15 @@ interface WeatherProvider {
 }
 
 internal object WeatherProviders {
-    fun get(providerId: String): WeatherProvider = when (providerId) {
-        PROVIDER_OPEN_METEO -> OpenMeteoWeatherProvider
-        else -> MetNoWeatherProvider
+    private val instances = mutableMapOf<String, CachedWeatherProvider>()
+
+    fun get(providerId: String): WeatherProvider = instances.getOrPut(providerId) {
+        val delegate: WeatherProvider = when (providerId) {
+            PROVIDER_OPEN_METEO -> OpenMeteoWeatherProvider
+            else -> MetNoWeatherProvider
+        }
+
+        CachedWeatherProvider(providerId, delegate)
     }
 }
 
