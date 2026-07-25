@@ -25,6 +25,6 @@
         android:importantForAccessibility="no"
         android:padding="10dp"
         android:scaleType="fitCenter"
-        android:src="@drawable/ic_sync" />
+        android:src="@drawable/quotes_preview_content" />
 
 </FrameLayout>
