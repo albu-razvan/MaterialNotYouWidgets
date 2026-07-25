@@ -1,7 +1,9 @@
 package com.razvanalbu.material.not.you.widgets.core
 
+import android.annotation.SuppressLint
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +29,9 @@ abstract class BaseConfigureActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // TODO: Maybe deal with landscape layouts in the future?
+        // noinspection SourceLockedOrientationActivity
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         setContentView(layoutResId)
 
