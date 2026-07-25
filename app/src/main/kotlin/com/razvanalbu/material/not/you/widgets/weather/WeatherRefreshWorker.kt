@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -82,7 +83,7 @@ class WeatherRefreshWorker(
             lon: Double
         ) {
             val request = PeriodicWorkRequestBuilder<WeatherRefreshWorker>(
-                15, TimeUnit.MINUTES
+                30, TimeUnit.MINUTES
             )
                 .setInputData(
                     workDataOf(
@@ -91,11 +92,12 @@ class WeatherRefreshWorker(
                         KEY_LON to lon
                     )
                 )
+                .setInitialDelay(30, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "weather_refresh_$appWidgetId",
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
         }
@@ -116,7 +118,11 @@ class WeatherRefreshWorker(
                 )
                 .build()
 
-            WorkManager.getInstance(context).enqueue(request)
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "weather_immediate_$appWidgetId",
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
         }
 
         fun cancelPeriodicRefresh(context: Context, appWidgetId: Int) {

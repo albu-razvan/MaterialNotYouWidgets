@@ -264,6 +264,14 @@ internal object WeatherWidgetStateManager {
         return null
     }
 
+    fun scheduleRefresh(context: Context, appWidgetId: Int) {
+        val config = WidgetConfig.load(context, appWidgetId) ?: return
+        applyState(context, appWidgetId, ContentState.UPDATING)
+
+        WeatherRefreshWorker.enqueueImmediateRefresh(context, appWidgetId, config.lat, config.lon)
+        WeatherRefreshWorker.enqueuePeriodicRefresh(context, appWidgetId, config.lat, config.lon)
+    }
+
     private const val TAG = "WidgetStateMgr"
     private const val PREFS_WEATHER = "weather_state_cache"
     private const val PREF_TEMP = "temp_"

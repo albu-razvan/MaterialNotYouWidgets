@@ -89,7 +89,7 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            ACTION_TAP_REFRESH -> {
+            ACTION_TAP -> {
                 val appWidgetId = intent.getIntExtra(
                     AppWidgetManager.EXTRA_APPWIDGET_ID,
                     AppWidgetManager.INVALID_APPWIDGET_ID
@@ -112,32 +112,6 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
 
                     schedulePeriodicRefresh(context, appWidgetId)
                     refreshAndAnimate(context, appWidgetId)
-                }
-
-                return
-            }
-
-            ACTION_SILENT_REFRESH -> {
-                val appWidgetId = intent.getIntExtra(
-                    AppWidgetManager.EXTRA_APPWIDGET_ID,
-                    AppWidgetManager.INVALID_APPWIDGET_ID
-                )
-
-                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                    val config = WidgetConfig.load(context, appWidgetId)
-                    if (config != null) {
-                        WeatherWidgetStateManager.applyState(
-                            context, appWidgetId, ContentState.UPDATING
-                        )
-
-                        WeatherRefreshWorker.enqueueImmediateRefresh(
-                            context,
-                            appWidgetId,
-                            config.lat,
-                            config.lon
-                        )
-                        schedulePeriodicRefresh(context, appWidgetId)
-                    }
                 }
 
                 return
@@ -310,10 +284,8 @@ class WeatherPillWidgetProvider : BaseWidgetProvider() {
     companion object {
         private const val TAG = "WidgetProvider"
 
-        const val ACTION_TAP_REFRESH =
-            "com.razvanalbu.material.not.you.widgets.TAP_REFRESH"
-        const val ACTION_SILENT_REFRESH =
-            "com.razvanalbu.material.not.you.widgets.SILENT_REFRESH"
+        const val ACTION_TAP =
+            "com.razvanalbu.material.not.you.widgets.weather.TAP"
 
     }
 }

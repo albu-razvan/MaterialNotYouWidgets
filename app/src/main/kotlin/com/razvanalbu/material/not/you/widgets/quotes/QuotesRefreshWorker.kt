@@ -1,15 +1,12 @@
 package com.razvanalbu.material.not.you.widgets.quotes
 
-import android.appwidget.AppWidgetManager
 import android.content.Context
-import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.razvanalbu.material.not.you.widgets.quotes.providers.QuotesImageProvider
 import java.util.concurrent.TimeUnit
 
 class QuotesRefreshWorker(
@@ -23,21 +20,7 @@ class QuotesRefreshWorker(
             return Result.failure()
         }
 
-        val quote = QuotesStore.pickRandomQuote(applicationContext, appWidgetId)
-        if (quote == null) {
-            Log.d(TAG, "No quotes configured for widget $appWidgetId")
-
-            val views = QuotesWidgetViews.createViews(applicationContext, appWidgetId, null)
-            AppWidgetManager.getInstance(applicationContext).updateAppWidget(appWidgetId, views)
-
-            return Result.success()
-        }
-
-        QuotesImageProvider.nextGeneration(appWidgetId)
-        QuotesImageProvider.invalidateCache(appWidgetId)
-
-        val views = QuotesWidgetViews.createViews(applicationContext, appWidgetId, quote)
-        AppWidgetManager.getInstance(applicationContext).updateAppWidget(appWidgetId, views)
+        QuotesWidgetStateManager.refreshWidget(applicationContext, appWidgetId)
 
         return Result.success()
     }
@@ -54,11 +37,12 @@ class QuotesRefreshWorker(
                 .setInputData(
                     workDataOf(KEY_APPWIDGET_ID to appWidgetId)
                 )
+                .setInitialDelay(60, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "quotes_refresh_$appWidgetId",
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
         }

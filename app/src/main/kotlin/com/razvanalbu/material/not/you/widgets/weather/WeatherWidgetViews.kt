@@ -7,7 +7,6 @@ import android.content.Intent
 import android.view.View
 import android.widget.RemoteViews
 import com.razvanalbu.material.not.you.widgets.R
-import com.razvanalbu.material.not.you.widgets.core.BasePumpService
 import com.razvanalbu.material.not.you.widgets.weather.WeatherWidgetStateManager.ContentState
 import com.razvanalbu.material.not.you.widgets.weather.providers.WidgetImageProvider
 
@@ -79,7 +78,7 @@ internal object WeatherWidgetViews {
                 context,
                 appWidgetId,
                 Intent(context, WeatherPillWidgetProvider::class.java).apply {
-                    action = WeatherPillWidgetProvider.ACTION_TAP_REFRESH
+                    action = WeatherPillWidgetProvider.ACTION_TAP
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

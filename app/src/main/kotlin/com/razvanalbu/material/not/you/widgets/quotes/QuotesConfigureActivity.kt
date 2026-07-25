@@ -2,8 +2,6 @@ package com.razvanalbu.material.not.you.widgets.quotes
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
-import android.appwidget.AppWidgetManager
-import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.text.Editable
@@ -60,7 +58,8 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
                 val view = (convertView as? MaterialCardView
                     ?: LayoutInflater.from(this@QuotesConfigureActivity)
                         .inflate(R.layout.item_quote, parent, false) as MaterialCardView)
-                val quote = getItem(pos) as Quote
+                val quote = getItem(pos)
+
                 view.findViewById<TextView>(R.id.quote_text).text = quote.text
                 view.findViewById<TextView>(R.id.quote_author).text = quote.author
 
@@ -125,7 +124,9 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
         addButton.isEnabled = false
         addButton.setOnClickListener { addQuote() }
 
-        findViewById<MaterialButton>(R.id.done_button).setOnClickListener { done() }
+        findViewById<MaterialButton>(R.id.done_button).setOnClickListener {
+            finish()
+        }
 
         val imageView = findViewById<View>(R.id.empty_state_shape)
 
@@ -141,6 +142,14 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
         }
 
         animator.start()
+    }
+
+    override fun onDestroy() {
+        if (quotes.isNotEmpty()) {
+            QuotesWidgetStateManager.scheduleRefresh(this, appWidgetId)
+        }
+
+        super.onDestroy()
     }
 
     override fun setupWindowInsets() {
@@ -294,23 +303,5 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
         authorInput.clearFocus()
 
         adapter.notifyDataSetChanged()
-
-        if (quotes.size == 1) {
-            QuotesStore.pickRandomQuote(this, appWidgetId)
-        }
-    }
-
-    private fun done() {
-        if (quotes.isNotEmpty()) {
-            val refreshIntent = Intent(this, QuotesWidgetProvider::class.java).apply {
-                action = QuotesWidgetProvider.ACTION_REFRESH
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            }
-            sendBroadcast(refreshIntent)
-        }
-
-        setResult(RESULT_OK, Intent())
-
-        finish()
     }
 }

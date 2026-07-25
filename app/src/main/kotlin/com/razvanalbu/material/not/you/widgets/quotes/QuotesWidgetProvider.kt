@@ -21,7 +21,7 @@ class QuotesWidgetProvider : BaseWidgetProvider() {
         Log.d(TAG, "onUpdate for ${appWidgetIds.size} widgets")
 
         for (appWidgetId in appWidgetIds) {
-            refreshWidget(context, appWidgetId)
+            QuotesWidgetStateManager.scheduleRefresh(context, appWidgetId)
         }
     }
 
@@ -43,10 +43,15 @@ class QuotesWidgetProvider : BaseWidgetProvider() {
                 QuotesWidgetViews.createSyncViews(context, appWidgetId)
             )
 
-            Handler(Looper.getMainLooper()).postDelayed({
+            pendingResizes.remove(appWidgetId)?.let { mainHandler.removeCallbacks(it) }
+            val runnable = Runnable {
+                pendingResizes.remove(appWidgetId)
                 val views = QuotesWidgetViews.createViews(context, appWidgetId, quote)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
-            }, 150L)
+            }
+            pendingResizes[appWidgetId] = runnable
+
+            mainHandler.postDelayed(runnable, 150L)
         }
     }
 
@@ -63,21 +68,8 @@ class QuotesWidgetProvider : BaseWidgetProvider() {
                     if (quotes.isEmpty()) {
                         openConfigActivity(context, appWidgetId)
                     } else {
-                        refreshWidget(context, appWidgetId)
+                        QuotesWidgetStateManager.scheduleRefresh(context, appWidgetId)
                     }
-                }
-
-                return
-            }
-
-            ACTION_REFRESH -> {
-                val appWidgetId = intent.getIntExtra(
-                    AppWidgetManager.EXTRA_APPWIDGET_ID,
-                    AppWidgetManager.INVALID_APPWIDGET_ID
-                )
-
-                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                    refreshWidget(context, appWidgetId)
                 }
 
                 return
@@ -89,7 +81,7 @@ class QuotesWidgetProvider : BaseWidgetProvider() {
                 )
 
                 for (appWidgetId in appWidgetIds) {
-                    schedulePeriodicRefresh(context, appWidgetId)
+                    QuotesRefreshWorker.enqueuePeriodicRefresh(context, appWidgetId)
                 }
 
                 return
@@ -103,31 +95,10 @@ class QuotesWidgetProvider : BaseWidgetProvider() {
         super.onDeleted(context, appWidgetIds)
 
         for (appWidgetId in appWidgetIds) {
-            cancelPeriodicRefresh(context, appWidgetId)
+            QuotesRefreshWorker.cancelPeriodicRefresh(context, appWidgetId)
             QuotesStore.removeQuotesData(context, appWidgetId)
             QuotesImageProvider.invalidateCache(appWidgetId)
         }
-    }
-
-    private fun refreshWidget(context: Context, appWidgetId: Int) {
-        val quote = QuotesStore.pickRandomQuote(context, appWidgetId)
-        if (quote != null) {
-            QuotesImageProvider.nextGeneration(appWidgetId)
-            QuotesImageProvider.invalidateCache(appWidgetId)
-        }
-
-        val views = QuotesWidgetViews.createViews(context, appWidgetId, quote)
-        AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, views)
-
-        schedulePeriodicRefresh(context, appWidgetId)
-    }
-
-    private fun schedulePeriodicRefresh(context: Context, appWidgetId: Int) {
-        QuotesRefreshWorker.enqueuePeriodicRefresh(context, appWidgetId)
-    }
-
-    private fun cancelPeriodicRefresh(context: Context, appWidgetId: Int) {
-        QuotesRefreshWorker.cancelPeriodicRefresh(context, appWidgetId)
     }
 
     private fun openConfigActivity(context: Context, appWidgetId: Int) {
@@ -145,10 +116,10 @@ class QuotesWidgetProvider : BaseWidgetProvider() {
 
     companion object {
         private const val TAG = "QuotesWidget"
+        private val mainHandler = Handler(Looper.getMainLooper())
+        private val pendingResizes = mutableMapOf<Int, Runnable>()
 
         const val ACTION_TAP =
             "com.razvanalbu.material.not.you.widgets.quotes.TAP"
-        const val ACTION_REFRESH =
-            "com.razvanalbu.material.not.you.widgets.quotes.REFRESH"
     }
 }

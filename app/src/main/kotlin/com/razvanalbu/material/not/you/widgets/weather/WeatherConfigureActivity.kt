@@ -1,6 +1,5 @@
 package com.razvanalbu.material.not.you.widgets.weather
 
-import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -43,13 +42,11 @@ class WeatherConfigureActivity : BaseConfigureActivity() {
 
     override fun onDestroy() {
         if (hasChanged) {
-            val refreshIntent = Intent(this, WeatherPillWidgetProvider::class.java).apply {
-                action = WeatherPillWidgetProvider.ACTION_SILENT_REFRESH
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            }
-            sendBroadcast(refreshIntent)
+            WeatherWidgetStateManager.scheduleRefresh(this, appWidgetId)
         }
+
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
+
         super.onDestroy()
     }
 
