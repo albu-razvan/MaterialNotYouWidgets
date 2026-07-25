@@ -49,7 +49,7 @@ A quote widget to remember all the stupid crap your friends and random redditors
   Load a single widget instance with as many questionable life lessons as you want. Tap to cycle through them.
 
 - **Responsive**  
-  The widget adapts to whatever nonsense you put inside. Font size adjusts dynamically to keep quotes readable across any widget size.</br><div align="right"><sub>Limits apply\*<sub></div>
+  The widget adapts to whatever nonsense you put inside. Font size adjusts dynamically to keep quotes readable across any widget size.<sup>1</sup></br><div align="right"><sup>1</sup>Validated on one carefully selected example.</div>
 
 ## Compatibility
 
