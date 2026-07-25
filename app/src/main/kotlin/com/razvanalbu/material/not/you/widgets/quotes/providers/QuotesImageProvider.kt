@@ -91,7 +91,7 @@ internal fun renderQuoteBitmap(
     if (quote != null) {
         val quoteTextSize = fitTextSize(
             quote.text, italicTypeface, availableWidth,
-            (availableHeight * 0.65f).toInt(), minOf(width, height) * 0.10f
+            (availableHeight * 0.75f).toInt(), minOf(width, height) * 0.10f
         )
         val authorTextSize = (quoteTextSize * 0.85f).coerceAtLeast(10f)
 
@@ -186,7 +186,7 @@ internal fun fitTextSize(
         .setBreakStrategy(LineBreaker.BREAK_STRATEGY_BALANCED)
         .build()
 
-    if (staticLayout.height <= maxHeight && staticLayout.lineCount <= 6) {
+        if (staticLayout.height <= maxHeight && staticLayout.lineCount <= 6) {
         return startSize
     }
 

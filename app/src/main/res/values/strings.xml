@@ -22,4 +22,7 @@
     <string name="nothing_here_yet">Nothing here yet</string>
     <string name="quote_text">Quote text…</string>
     <string name="author_name">Author name…</string>
+    <string name="delete_quote">Delete quote</string>
+    <string name="quote_too_long">Quote text is too long (max 175 characters, 4 lines)</string>
+    <string name="author_too_long">Author name must be 20 characters or less</string>
 </resources>

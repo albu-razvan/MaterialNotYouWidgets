@@ -44,6 +44,7 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
         val quoteInput = findViewById<EditText>(R.id.quote_input)
         val authorInput = findViewById<EditText>(R.id.author_input)
         val addButton = findViewById<MaterialButton>(R.id.add_button)
+        val errorText = findViewById<TextView>(R.id.error_text)
 
         val listView = findViewById<ListView>(R.id.quotes_list)
         listView.emptyView = findViewById(R.id.empty_state)
@@ -73,7 +74,25 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                addButton.isEnabled = quoteInput.text.isNotBlank() && authorInput.text.isNotBlank()
+                val text = quoteInput.text.toString().trim()
+                val author = authorInput.text.toString().trim()
+
+                val textTooLong = text.length > 175
+                val authorTooLong = author.length > 20
+                val tooManyLines = quoteInput.lineCount > 4
+
+                addButton.isEnabled = text.isNotBlank() && author.isNotBlank()
+                        && !textTooLong && !authorTooLong && !tooManyLines
+
+                if (textTooLong || tooManyLines) {
+                    errorText.text = getString(R.string.quote_too_long)
+                    errorText.visibility = View.VISIBLE
+                } else if (authorTooLong) {
+                    errorText.text = getString(R.string.author_too_long)
+                    errorText.visibility = View.VISIBLE
+                } else {
+                    errorText.visibility = View.GONE
+                }
             }
         }
 
@@ -191,13 +210,30 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
     private fun addQuote() {
         val quoteInput = findViewById<EditText>(R.id.quote_input)
         val authorInput = findViewById<EditText>(R.id.author_input)
+        val errorText = findViewById<TextView>(R.id.error_text)
 
         val text = quoteInput.text.toString().trim()
         val author = authorInput.text.toString().trim()
 
-        if (text.isEmpty()) return
+        if (text.isEmpty() || author.isEmpty()) {
+            return
+        }
 
-        quotes.add(Quote(text, author.ifEmpty { "Unknown" }))
+        if (text.length > 175 || quoteInput.lineCount > 4) {
+            errorText.text = getString(R.string.quote_too_long)
+            errorText.visibility = View.VISIBLE
+
+            return
+        }
+
+        if (author.length > 20) {
+            errorText.text = getString(R.string.author_too_long)
+            errorText.visibility = View.VISIBLE
+
+            return
+        }
+
+        quotes.add(Quote(text, author))
         QuotesStore.saveQuotes(this, appWidgetId, quotes)
 
         quoteInput.text.clear()

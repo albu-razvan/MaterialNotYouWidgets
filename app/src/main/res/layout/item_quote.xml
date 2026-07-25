@@ -27,8 +27,10 @@
                 android:id="@+id/quote_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
                 android:fontFamily="@font/google_sans_flex_regular"
                 android:lineHeight="18sp"
+                android:maxLines="2"
                 android:textAppearance="?attr/textAppearanceBodyLarge"
                 android:textColor="?attr/colorOnSurface"
                 android:textStyle="italic" />
@@ -38,8 +40,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
+                android:ellipsize="end"
                 android:fontFamily="@font/google_sans_flex_bold_rounded"
                 android:gravity="end"
+                android:maxLines="1"
                 android:textAppearance="?attr/textAppearanceBodyMedium"
                 android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -54,7 +58,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Delete quote"
+            android:contentDescription="@string/delete_quote"
             android:padding="8dp"
             android:src="@drawable/ic_delete" />
 
