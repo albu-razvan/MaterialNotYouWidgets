@@ -186,7 +186,7 @@ internal fun fitTextSize(
         .setBreakStrategy(LineBreaker.BREAK_STRATEGY_BALANCED)
         .build()
 
-        if (staticLayout.height <= maxHeight && staticLayout.lineCount <= 6) {
+    if (staticLayout.height <= maxHeight && staticLayout.lineCount <= 6) {
         return startSize
     }
 

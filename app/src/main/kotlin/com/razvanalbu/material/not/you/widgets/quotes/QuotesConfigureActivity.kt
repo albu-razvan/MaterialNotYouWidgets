@@ -16,6 +16,7 @@ import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
+import com.google.android.material.card.MaterialCardView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,6 +33,7 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
     override val layoutResId = R.layout.activity_quotes_configure
 
     private val quotes = mutableListOf<Quote>()
+    private var editingIndex: Int? = null
     private var doneButtonHeight = 0
     private lateinit var scrollContainer: ViewGroup
     private lateinit var adapter: BaseAdapter
@@ -55,12 +57,33 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
             override fun getItemId(pos: Int) = pos.toLong()
 
             override fun getView(pos: Int, convertView: View?, parent: ViewGroup): View {
-                val view = convertView ?: LayoutInflater.from(this@QuotesConfigureActivity)
-                    .inflate(R.layout.item_quote, parent, false)
+                val view = (convertView as? MaterialCardView
+                    ?: LayoutInflater.from(this@QuotesConfigureActivity)
+                        .inflate(R.layout.item_quote, parent, false) as MaterialCardView)
                 val quote = getItem(pos) as Quote
                 view.findViewById<TextView>(R.id.quote_text).text = quote.text
                 view.findViewById<TextView>(R.id.quote_author).text = quote.author
+
+                val isEditing = editingIndex == pos
+                view.strokeWidth = if (isEditing) {
+                    resources.getDimensionPixelSize(R.dimen.quote_edit_stroke)
+                } else {
+                    0
+                }
+
+                view.setOnClickListener {
+                    selectQuote(pos)
+                }
+
                 view.findViewById<View>(R.id.delete_button).setOnClickListener {
+                    val editingIdx = editingIndex
+                    if (editingIdx != null) {
+                        if (editingIdx == pos) {
+                            editingIndex = null
+                        } else if (editingIdx > pos) {
+                            editingIndex = editingIdx - 1
+                        }
+                    }
                     quotes.removeAt(pos)
                     QuotesStore.saveQuotes(this@QuotesConfigureActivity, appWidgetId, quotes)
                     notifyDataSetChanged()
@@ -207,9 +230,30 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
         }
     }
 
+    private fun selectQuote(pos: Int) {
+        val quoteInput = findViewById<EditText>(R.id.quote_input)
+        val authorInput = findViewById<EditText>(R.id.author_input)
+        val addButton = findViewById<MaterialButton>(R.id.add_button)
+
+        if (editingIndex == pos) {
+            editingIndex = null
+            quoteInput.text.clear()
+            authorInput.text.clear()
+            addButton.setIconResource(R.drawable.ic_add_quote)
+        } else {
+            editingIndex = pos
+            val quote = quotes[pos]
+            quoteInput.setText(quote.text)
+            authorInput.setText(quote.author)
+            addButton.setIconResource(R.drawable.ic_confirm_edit)
+        }
+        adapter.notifyDataSetChanged()
+    }
+
     private fun addQuote() {
         val quoteInput = findViewById<EditText>(R.id.quote_input)
         val authorInput = findViewById<EditText>(R.id.author_input)
+        val addButton = findViewById<MaterialButton>(R.id.add_button)
         val errorText = findViewById<TextView>(R.id.error_text)
 
         val text = quoteInput.text.toString().trim()
@@ -233,8 +277,16 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
             return
         }
 
-        quotes.add(Quote(text, author))
+        val idx = editingIndex
+        if (idx != null) {
+            quotes[idx] = Quote(text, author)
+            editingIndex = null
+        } else {
+            quotes.add(Quote(text, author))
+        }
         QuotesStore.saveQuotes(this, appWidgetId, quotes)
+
+        addButton.setIconResource(R.drawable.ic_add_quote)
 
         quoteInput.text.clear()
         authorInput.text.clear()

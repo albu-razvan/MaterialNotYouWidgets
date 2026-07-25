@@ -7,6 +7,7 @@
     app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
+    app:strokeColor="?attr/colorPrimary"
     app:strokeWidth="0dp">
 
     <LinearLayout
