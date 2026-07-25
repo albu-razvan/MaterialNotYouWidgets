@@ -34,7 +34,22 @@ A weather widget that looks good because it refuses not to.
 - **Morphing Animation Engine**  
   Tap to refresh and watch the pill morph into a 6-lobed clover, spin around like it's having a seizure, then morph back. Built with raw `Canvas`, `Choreographer`, and a concerning amount of parametric math. Animations run as a foreground service because Android doesn't let you do jack in the background anymore.
 
-### 2. _Soon™_
+### 2. Quotes
+
+<img src="./public/quotes_preview.png" style="height: 200px">
+
+A quote widget to remember all the stupid crap your friends and random redditors have to say. You can also use it as your shopping list, if you must.
+
+#### Features
+
+- **Fresh Garbage, Hourly**  
+  Every 60 minutes, a new quote is displayed. Because apparently one questionable thought at a time wasn't enough.
+
+- **Multiple Quotes**  
+  Load a single widget instance with as many questionable life lessons as you want. Tap to cycle through them.
+
+- **Responsive**  
+  The widget adapts to whatever nonsense you put inside. Font size adjusts dynamically to keep quotes readable across any widget size.</br><div align="right"><sub>Limits apply\*<sub></div>
 
 ## Compatibility
 
