@@ -37,6 +37,14 @@ internal object QuotesStore {
         prefs(context).edit {
             putString(KEY_QUOTES + widgetId, json.toString())
             putInt(KEY_QUOTES_GEN + widgetId, gen)
+
+            if (quotes.isEmpty()) {
+                remove(KEY_CURRENT_TEXT + widgetId)
+                remove(KEY_CURRENT_AUTHOR + widgetId)
+                remove(KEY_SHUFFLE_LIST + widgetId)
+                remove(KEY_SHUFFLE_CURSOR + widgetId)
+                remove(KEY_SHUFFLE_GEN + widgetId)
+            }
         }
     }
 

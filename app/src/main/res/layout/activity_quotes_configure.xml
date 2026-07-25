@@ -151,11 +151,10 @@
                                 android:importantForAutofill="no"
                                 android:inputType="textCapSentences|textMultiLine"
                                 android:maxLength="176"
-                                android:maxLines="4"
+                                android:maxLines="2"
                                 android:minHeight="56dp"
                                 android:paddingHorizontal="16dp"
                                 android:paddingVertical="16dp"
-                                android:requiresFadingEdge="vertical"
                                 android:textAppearance="?attr/textAppearanceBodyLarge" />
 
                         </com.google.android.material.textfield.TextInputLayout>

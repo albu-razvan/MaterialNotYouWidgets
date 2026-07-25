@@ -75,14 +75,10 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
                 }
 
                 view.findViewById<View>(R.id.delete_button).setOnClickListener {
-                    val editingIdx = editingIndex
-                    if (editingIdx != null) {
-                        if (editingIdx == pos) {
-                            editingIndex = null
-                        } else if (editingIdx > pos) {
-                            editingIndex = editingIdx - 1
-                        }
-                    }
+                    editingIndex = null
+                    quoteInput.text.clear()
+                    authorInput.text.clear()
+                    addButton.setIconResource(R.drawable.ic_add_quote)
                     quotes.removeAt(pos)
                     QuotesStore.saveQuotes(this@QuotesConfigureActivity, appWidgetId, quotes)
                     notifyDataSetChanged()
@@ -147,6 +143,8 @@ class QuotesConfigureActivity : BaseConfigureActivity() {
     override fun onDestroy() {
         if (quotes.isNotEmpty()) {
             QuotesWidgetStateManager.scheduleRefresh(this, appWidgetId)
+        } else {
+            QuotesWidgetStateManager.refreshWidget(this, appWidgetId)
         }
 
         super.onDestroy()
