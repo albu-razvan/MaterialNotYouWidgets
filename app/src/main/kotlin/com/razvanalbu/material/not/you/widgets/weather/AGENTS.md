@@ -15,7 +15,16 @@ centralized in `WeatherWidgetStateManager`.
 
 `WeatherWidgetStateManager` is the single source of truth for widget content
 state. All `AppWidgetManager.updateAppWidget` calls that touch content must
-route through the state manager. The three update paths are:
+route through the state manager. The two refresh entry points are:
+
+1. **`scheduleRefresh(context, appWidgetId)`** — called from `onUpdate`,
+   `onReceive` (user tap), and `WeatherConfigureActivity.onDestroy`. Calls
+   `refreshWidget()` then enqueues `WorkManager` periodic refresh.
+2. **`refreshWidget(context, appWidgetId)`** — called from
+   `WeatherRefreshWorker.doWork()`. Fetches weather, precaches, and applies
+   state.
+
+Within an active animation, the three direct apply paths are:
 
 1. **`applyNow`** — immediate apply when no animation is running
 2. **`enqueueDuringAnimation`** — queues the update; flushed at MORPH_OUT start
@@ -146,6 +155,13 @@ getCachedBitmap(context, widgetId)  → decode cached PNG to Bitmap (or null)
 `applyState()` is posted to the main handler. By the time MORPH_OUT
 starts, the cache is populated.
 
+**Important:** `precache()` is **never** called on the UI thread. The
+removed `onBeforeMorphOut`/resize precache paths would block the
+main thread — instead, precaching happens exclusively during background
+fetch. Content is re-cached at MORPH_OUT start by
+`flushContentDuringMorphOut()` to ensure the cached bitmap reflects
+the latest widget size after a resize.
+
 ### `openFile` Flow
 
 1. Read generation from `generationMap`
@@ -185,15 +201,19 @@ override fun onPushFrameHook(views: RemoteViews) {
 
 ### `onBeforeMorphOut()`
 
-Called when `ToMorphOut` is returned. Flushes pending content updates:
+Called when `ToMorphOut` is returned. Flushes pending content updates and
+re-caches the content bitmap to ensure it reflects the latest widget size
+(important after resize):
 
 ```kotlin
 WeatherWidgetStateManager.flushContentDuringMorphOut(this, widgetId)
 ```
 
-This updates `currentContentState` and persists weather state but does
-**not** call `updateAppWidget` — the content source will be picked up by
-the next `onPushFrameHook` call on the same frame.
+This re-precaches content at the current widget dimensions, updates
+`currentContentState`, and persists weather state — but does **not** call
+`updateAppWidget`. The content source will be picked up by the next
+`onPushFrameHook` call on the same frame, ensuring the cached bitmap is
+always fresh.
 
 ### `onAnimationComplete()`
 
@@ -288,15 +308,60 @@ drawable in all widget views.
 
 ---
 
+## API Response Caching
+
+`CachedWeatherProvider` wraps a `WeatherProvider` (either `MetNoWeatherProvider`
+or `OpenMeteoWeatherProvider`) and caches successful JSON responses in memory
+keyed by location + provider type. This prevents redundant network calls when
+multiple widgets share the same location or when periodic refresh fires before
+the provider's rate-limit window expires.
+
+- Cache is invalidated on each `fetch()` call — stale entries are skipped
+- Failures fall through to the underlying provider (no stale cache served as
+  fresh data)
+
+---
+
+## Foreground Service Start (CountDownLatch)
+
+`BasePumpService` no longer uses `AlarmManager` as a fallback to work around
+the Android 5-second foreground-service timeout. Instead, `startForeground()`
+is wrapped with a `CountDownLatch` that blocks `onStartCommand` until the
+notification channel and foreground notification are ready.
+
+The `onForegroundStartComplete(success)` hook lets subclasses react:
+- `success = true` — animation starts via `Choreographer` frame callback
+- `success = false` — `resetAnimation(widgetId)` + `stopSelf()`; system will
+  retry via the periodic refresh worker
+
+---
+
+## Service Interruption
+
+If the system kills the foreground service mid-animation, `cleanup()` in
+`BasePumpService.onDestroy` calls:
+
+1. `WeatherWidgetStateManager.reapplyState(context, widgetId)` — restores the
+   widget to its last known content state
+2. `WeatherWidgetStateManager.resetAnimation(widgetId)` — resets animation
+   phase to `IDLE` and clears pending updates
+
+`createResetViews()` (from `WeatherWidgetViews`) strips all animation effects
+(scale, alpha) from the widget layout, returning it to a steady-state appearance.
+This prevents stale transforms from persisting after service teardown.
+
+---
+
 ## Key Files
 
 | File | Purpose |
 |---|---|
-| `WeatherWidgetStateManager.kt` | State machine, content state tracking, pending updates, persistence |
-| `BasePumpService.kt` | Generic animation service (phase rendering, frame callback, pushFrame) |
+| `WeatherWidgetStateManager.kt` | State machine, content state tracking, pending updates, persistence, refresh |
+| `BasePumpService.kt` | Generic animation service (phase rendering, frame callback, pushFrame, CountDownLatch start) |
 | `FramePumpService.kt` | Weather-specific override: hooks, content flush, animation completion |
-| `WeatherWidgetViews.kt` | View factories: createViews, applyContentState, applyContentStateBitmap |
+| `WeatherWidgetViews.kt` | View factories: createViews, createResetViews, applyContentState, applyContentStateBitmap |
 | `WeatherImageProvider.kt` | ContentProvider: URI serving, PNG cache, precache, render |
+| `CachedWeatherProvider.kt` | API response cache layer wrapping MetNo / OpenMeteo providers |
 | `WeatherPillWidget.kt` | AppWidgetProvider: onReceive, refreshAndAnimate, user/system dispatch |
 | `WeatherRefreshWorker.kt` | WorkManager worker for periodic background refresh |
 | `WeatherPillAnimSpec.kt` | Per-phase animation specs (scale, alpha, interpolator) |
